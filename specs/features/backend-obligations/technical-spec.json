@@ -1,0 +1,726 @@
+{
+  "meta": {
+    "feature_id": "backend-obligations",
+    "document_type": "technical_specification",
+    "status": "pending_approval",
+    "created_at": "2026-07-02",
+    "depends_on": [
+      "specs/features/backend-obligations/functional-spec.json"
+    ]
+  },
+  "context": {
+    "repository_state": "The workspace has Git metadata and specification documents, but no application scaffold yet.",
+    "feature_type": "backend-heavy",
+    "approved_functional_scope": [
+      "CRUD for compliance obligations",
+      "Backend-owned state machine",
+      "Document-gated submission",
+      "Backend-derived overdue and due-soon flags",
+      "Masked sensitive company tax id on read",
+      "Status audit trail",
+      "Optimistic locking for status changes",
+      "Consistent error contract"
+    ],
+    "constraints": [
+      "Domain rules must not live in HTTP handlers.",
+      "Domain rules must not depend on ORM models or database sessions.",
+      "Frontend must consume available transitions and date-derived flags from the backend.",
+      "Raw company tax id must not appear in read responses, errors, logs, or audit records."
+    ]
+  },
+  "architecture": {
+    "runtime": {
+      "language": "Python 3.11",
+      "framework": "FastAPI",
+      "validation": "Pydantic v2",
+      "persistence": "PostgreSQL via async SQLAlchemy 2.0 AND SUPABASE",
+      "migrations": "Alembic",
+      "dependency_management": "pyproject.toml"
+    },
+    "module_boundaries": {
+      "app/api": {
+        "responsibility": "HTTP routes, request parsing, response schemas, dependency injection, and error mapping only.",
+        "must_not_do": [
+          "No status transition decisions.",
+          "No overdue or due-soon date logic.",
+          "No direct SQL mutation for status changes."
+        ]
+      },
+      "app/application": {
+        "responsibility": "Use cases and transaction orchestration.",
+        "examples": [
+          "CreateObligation",
+          "UpdateObligation",
+          "DeleteObligation",
+          "ChangeObligationStatus",
+          "AttachObligationDocumentMetadata",
+          "ListObligations",
+          "GetObligationDetail"
+        ]
+      },
+      "app/domain": {
+        "responsibility": "Pure business rules independent from FastAPI, SQLAlchemy, and Pydantic schemas.",
+        "examples": [
+          "ObligationStatus enum",
+          "Obligation domain entity",
+          "Status transition policy",
+          "Document-gated submission policy",
+          "Business date derivation for is_over_due and is_due_soon",
+          "Available transition calculation",
+          "Domain exceptions"
+        ]
+      },
+      "app/infrastructure/db": {
+        "responsibility": "SQLAlchemy models, database session factory, repositories, and transaction-safe persistence.",
+        "examples": [
+          "ObligationModel",
+          "ObligationDocumentModel",
+          "ObligationStatusAuditModel",
+          "SqlAlchemyObligationRepository"
+        ]
+      },
+      "app/infrastructure/security": {
+        "responsibility": "Company tax id encryption, masking, and safe helper functions.",
+        "must_not_do": [
+          "No logging of raw PII.",
+          "No returning raw PII through schema helpers."
+        ]
+      },
+      "app/config": {
+        "responsibility": "Environment-driven settings such as database URL, due-soon window, encryption key, and logging level."
+      }
+    },
+    "domain_flow": {
+      "status_change": [
+        "HTTP route receives targetStatus, expectedVersion, and optional reason.",
+        "Application service loads obligation aggregate and document metadata through repository.",
+        "Application service verifies expectedVersion against the current obligation version.",
+        "Domain policy validates requested status transition.",
+        "Domain policy validates document requirement when target status is submitted.",
+        "Repository persists status, increments version, and inserts audit event in one database transaction.",
+        "Application service returns fresh obligation detail with derived fields and available transitions."
+      ],
+      "read_model": [
+        "Repository loads database rows.",
+        "Application layer maps rows to domain/read DTOs.",
+        "Domain date policy calculates is_over_due and is_due_soon using injected business date and configured due_soon_window_days.",
+        "Security helper masks company tax id from stored encrypted value or last4.",
+        "API schema serializes camelCase fields for the frontend."
+      ]
+    },
+    "resolved_open_questions": {
+      "delete_behavior": {
+        "decision": "Use hard delete for first scope.",
+        "rationale": "The challenge asks for CRUD and only requires audit trail for status changes. Soft delete is defensible but adds query filters and lifecycle rules that do not improve the core evaluated domain behavior for this small scope.",
+        "future_option": "Move to soft delete if deletion audit or recovery becomes a requirement."
+      },
+      "document_metadata_operation": {
+        "decision": "Use a dedicated document metadata endpoint.",
+        "rationale": "It keeps requiresDocument as an obligation rule and attached document as a separate fact, which makes the document-gated submission rule explicit."
+      },
+      "dashboard_kpis": {
+        "decision": "Return list items with backend-derived status, isOverdue, and isDueSoon; let the frontend aggregate KPIs in first scope.",
+        "rationale": "The domain-critical booleans still come from backend, while avoiding an extra summary endpoint before performance demands it."
+      },
+      "due_soon_default": {
+        "decision": "Default DUE_SOON_WINDOW_DAYS to 30 calendar days.",
+        "rationale": "Thirty days is easy to explain for compliance obligations, configurable for future product changes, and broad enough for dashboard warnings."
+      }
+    }
+  },
+  "interfaces": {
+    "external_naming": {
+      "decision": "HTTP JSON uses camelCase.",
+      "examples": [
+        "dueDate",
+        "requiresDocument",
+        "companyTaxIdMasked",
+        "isOverdue",
+        "isDueSoon",
+        "availableTransitions",
+        "expectedVersion"
+      ]
+    },
+    "internal_naming": {
+      "decision": "Python domain and database fields use snake_case.",
+      "examples": [
+        "due_date",
+        "requires_document",
+        "company_tax_id_encrypted",
+        "company_tax_id_last4",
+        "is_over_due",
+        "is_due_soon",
+        "expected_version"
+      ]
+    },
+    "api_routes": [
+      {
+        "method": "GET",
+        "path": "/health",
+        "purpose": "Readiness smoke check.",
+        "response": {
+          "status": "ok"
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/api/obligations",
+        "purpose": "List obligations sorted by dueDate ascending by default.",
+        "query": {
+          "status": "optional status filter",
+          "type": "optional obligation type filter"
+        },
+        "response": "ObligationListResponse"
+      },
+      {
+        "method": "POST",
+        "path": "/api/obligations",
+        "purpose": "Create obligation.",
+        "request": "ObligationCreateRequest",
+        "response": "ObligationDetailResponse"
+      },
+      {
+        "method": "GET",
+        "path": "/api/obligations/{obligationId}",
+        "purpose": "Read obligation detail including audit history.",
+        "response": "ObligationDetailResponse"
+      },
+      {
+        "method": "PATCH",
+        "path": "/api/obligations/{obligationId}",
+        "purpose": "Update editable obligation fields except workflow status.",
+        "request": "ObligationUpdateRequest",
+        "response": "ObligationDetailResponse"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/obligations/{obligationId}",
+        "purpose": "Delete obligation for first-scope CRUD.",
+        "response": {
+          "deleted": true
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/api/obligations/{obligationId}/status-changes",
+        "purpose": "Change obligation workflow status with optimistic locking.",
+        "request": "StatusChangeRequest",
+        "response": "ObligationDetailResponse"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/obligations/{obligationId}/document",
+        "purpose": "Attach or replace mock document metadata.",
+        "request": "ObligationDocumentRequest",
+        "response": "ObligationDetailResponse"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/obligations/{obligationId}/document",
+        "purpose": "Remove attached mock document metadata.",
+        "response": "ObligationDetailResponse"
+      }
+    ],
+    "schemas": {
+      "ObligationCreateRequest": {
+        "type": "annual_report | franchise_tax | boi_report | registered_agent_renewal",
+        "title": "non-empty string",
+        "description": "string",
+        "status": "optional pending | in_progress | submitted | done; default pending, but submitted still requires document rule",
+        "dueDate": "YYYY-MM-DD",
+        "owner": "non-empty string",
+        "requiresDocument": "boolean",
+        "companyTaxId": "non-empty string"
+      },
+      "ObligationUpdateRequest": {
+        "type": "optional obligation type",
+        "title": "optional non-empty string",
+        "description": "optional string",
+        "dueDate": "optional YYYY-MM-DD",
+        "owner": "optional non-empty string",
+        "requiresDocument": "optional boolean",
+        "companyTaxId": "optional non-empty string",
+        "expectedVersion": "integer"
+      },
+      "StatusChangeRequest": {
+        "targetStatus": "pending | in_progress | submitted | done",
+        "expectedVersion": "integer",
+        "reason": "optional string"
+      },
+      "ObligationDocumentRequest": {
+        "fileName": "non-empty string",
+        "contentType": "non-empty string",
+        "sizeBytes": "positive integer",
+        "storageKey": "optional string"
+      },
+      "ObligationListItem": {
+        "id": "uuid",
+        "type": "obligation type",
+        "title": "string",
+        "description": "string",
+        "status": "status",
+        "dueDate": "YYYY-MM-DD",
+        "owner": "string",
+        "requiresDocument": "boolean",
+        "hasDocument": "boolean",
+        "companyTaxIdMasked": "string",
+        "isOverdue": "boolean",
+        "isDueSoon": "boolean",
+        "availableTransitions": "array of statuses",
+        "submitBlockedReason": "DOCUMENT_REQUIRED | null",
+        "version": "integer"
+      },
+      "ObligationDetailResponse": {
+        "obligation": "ObligationListItem plus document metadata and audit history"
+      },
+      "AuditEvent": {
+        "id": "uuid",
+        "fromStatus": "status",
+        "toStatus": "status",
+        "changedAt": "ISO-8601 datetime",
+        "changedBy": "demo-user | system",
+        "obligationVersion": "integer",
+        "reason": "string | null"
+      },
+      "ErrorResponse": {
+        "code": "string",
+        "message": "string",
+        "details": "object"
+      }
+    },
+    "error_contract": [
+      {
+        "code": "OBLIGATION_NOT_FOUND",
+        "http_status": 404,
+        "trigger": "The obligation id does not exist."
+      },
+      {
+        "code": "INVALID_STATUS_TRANSITION",
+        "http_status": 422,
+        "trigger": "The requested target status is not allowed from the current status."
+      },
+      {
+        "code": "DOCUMENT_REQUIRED_FOR_SUBMISSION",
+        "http_status": 422,
+        "trigger": "The obligation requires a document and no document metadata exists when submitting."
+      },
+      {
+        "code": "OBLIGATION_VERSION_CONFLICT",
+        "http_status": 409,
+        "trigger": "expectedVersion does not match the current obligation version."
+      },
+      {
+        "code": "VALIDATION_ERROR",
+        "http_status": 422,
+        "trigger": "Request body, query, or path validation fails."
+      },
+      {
+        "code": "INTERNAL_SERVER_ERROR",
+        "http_status": 500,
+        "trigger": "Unexpected server failure with sanitized message."
+      }
+    ],
+    "openapi": {
+      "decision": "FastAPI generated OpenAPI is part of the deliverable.",
+      "quality_gate": "Every public route must have typed request and response models so OpenAPI documents the contract without hand-written drift."
+    }
+  },
+  "data_model": {
+    "obligations": {
+      "id": "uuid primary key",
+      "type": "enum string",
+      "title": "text not null",
+      "description": "text not null default empty",
+      "status": "enum string not null",
+      "due_date": "date not null",
+      "owner": "text not null",
+      "requires_document": "boolean not null default false",
+      "company_tax_id_encrypted": "text not null",
+      "company_tax_id_last4": "text not null",
+      "version": "integer not null default 1",
+      "created_at": "timestamp with timezone not null",
+      "updated_at": "timestamp with timezone not null"
+    },
+    "obligation_documents": {
+      "id": "uuid primary key",
+      "obligation_id": "uuid unique foreign key obligations.id on delete cascade",
+      "file_name": "text not null",
+      "content_type": "text not null",
+      "size_bytes": "integer not null",
+      "storage_key": "text not null",
+      "uploaded_at": "timestamp with timezone not null",
+      "uploaded_by": "text not null default demo-user"
+    },
+    "obligation_status_audit": {
+      "id": "uuid primary key",
+      "obligation_id": "uuid foreign key obligations.id on delete cascade",
+      "from_status": "enum string not null",
+      "to_status": "enum string not null",
+      "changed_at": "timestamp with timezone not null",
+      "changed_by": "text not null default demo-user",
+      "obligation_version": "integer not null",
+      "reason": "text nullable",
+      "request_id": "text nullable",
+      "metadata": "jsonb not null default empty object"
+    },
+    "indexes": [
+      "obligations(due_date)",
+      "obligations(status)",
+      "obligation_status_audit(obligation_id, changed_at)"
+    ]
+  },
+  "domain_rules": {
+    "statuses": [
+      "pending",
+      "in_progress",
+      "submitted",
+      "done"
+    ],
+    "transitions": {
+      "pending": [
+        "in_progress"
+      ],
+      "in_progress": [
+        "submitted",
+        "pending"
+      ],
+      "submitted": [
+        "done",
+        "in_progress"
+      ],
+      "done": [
+        "in_progress"
+      ]
+    },
+    "is_over_due": "due_date < business_today and status not in submitted/done",
+    "is_due_soon": "business_today <= due_date <= business_today + due_soon_window_days and status not in submitted/done",
+    "document_gate": "target_status == submitted and requires_document == true requires attached document metadata",
+    "available_transitions": "Start from status transition map, then exclude submitted when document_gate would block it and include submitBlockedReason DOCUMENT_REQUIRED.",
+    "clock": "Inject a Clock protocol in application/domain tests; production implementation returns current UTC date or configured business date provider."
+  },
+  "configuration": {
+    "DATABASE_URL": {
+      "required": true,
+      "example": "postgresql+asyncpg://lazo:lazo@localhost:5432/lazo"
+    },
+    "DUE_SOON_WINDOW_DAYS": {
+      "required": false,
+      "default": 30,
+      "validation": "integer >= 0"
+    },
+    "PII_ENCRYPTION_KEY": {
+      "required": true,
+      "description": "Fernet-compatible key for encrypting companyTaxId at rest."
+    },
+    "APP_ENV": {
+      "required": false,
+      "default": "local"
+    },
+    "LOG_LEVEL": {
+      "required": false,
+      "default": "INFO"
+    }
+  },
+  "libraries": [
+    {
+      "name": "fastapi",
+      "purpose": "HTTP API and OpenAPI generation.",
+      "rationale": "Required by the challenge and fits typed Python API work."
+    },
+    {
+      "name": "pydantic-settings",
+      "purpose": "Environment-driven app settings.",
+      "rationale": "Keeps DUE_SOON_WINDOW_DAYS and PII_ENCRYPTION_KEY explicit and testable."
+    },
+    {
+      "name": "sqlalchemy[asyncio]",
+      "purpose": "Async ORM and transaction management.",
+      "rationale": "Matches Lazo job stack and keeps persistence separate from domain."
+    },
+    {
+      "name": "asyncpg",
+      "purpose": "PostgreSQL async driver.",
+      "rationale": "Production-like persistence for the challenge."
+    },
+    {
+      "name": "alembic",
+      "purpose": "Database migrations.",
+      "rationale": "Schema changes should be reproducible and reviewable."
+    },
+    {
+      "name": "cryptography",
+      "purpose": "Encrypt companyTaxId at rest.",
+      "rationale": "The challenge requires storing the full value but never exposing it. Encryption plus last4 is stronger than plaintext storage."
+    },
+    {
+      "name": "pytest",
+      "purpose": "Backend test runner.",
+      "rationale": "Standard Python behavior test framework."
+    },
+    {
+      "name": "pytest-asyncio",
+      "purpose": "Async service and repository tests.",
+      "rationale": "Required for async SQLAlchemy and FastAPI testing."
+    },
+    {
+      "name": "httpx",
+      "purpose": "API integration tests against FastAPI app.",
+      "rationale": "FastAPI-compatible async test client."
+    },
+    {
+      "name": "ruff",
+      "purpose": "Linting and formatting.",
+      "rationale": "Fast local quality gate with minimal config."
+    }
+  ],
+  "failure_modes_and_edges": [
+    {
+      "case": "Raw tax id appears in response",
+      "handling": "Response schemas never include companyTaxId. Create/update schemas accept it; read schemas expose only companyTaxIdMasked."
+    },
+    {
+      "case": "Raw tax id appears in logs",
+      "handling": "Do not log request bodies. Exception handlers return sanitized ErrorResponse. Audit metadata must not include raw payloads."
+    },
+    {
+      "case": "Invalid transition",
+      "handling": "Domain raises InvalidStatusTransition; API maps to 422 INVALID_STATUS_TRANSITION."
+    },
+    {
+      "case": "Document required for submission",
+      "handling": "Domain raises DocumentRequiredForSubmission; API maps to 422 DOCUMENT_REQUIRED_FOR_SUBMISSION."
+    },
+    {
+      "case": "Concurrent status change",
+      "handling": "Application service checks expectedVersion in the same transaction as update and audit insert. Stale versions map to 409 OBLIGATION_VERSION_CONFLICT."
+    },
+    {
+      "case": "Audit insert fails",
+      "handling": "Transaction rolls back status update and version increment."
+    },
+    {
+      "case": "DUE_SOON_WINDOW_DAYS is invalid",
+      "handling": "Settings validation fails at startup instead of silently using a wrong threshold."
+    },
+    {
+      "case": "PII_ENCRYPTION_KEY is missing",
+      "handling": "Startup fails outside explicitly documented local test overrides."
+    },
+    {
+      "case": "Due date equals today",
+      "handling": "Not overdue; due soon if status is active and due soon window is >= 0."
+    },
+    {
+      "case": "Due soon window is zero",
+      "handling": "Only obligations due today can be due soon."
+    }
+  ],
+  "testing_strategy": {
+    "domain_tests": [
+      "Valid transition matrix accepts only approved transitions.",
+      "Invalid transition matrix rejects all other transitions.",
+      "Document-gated submission blocks submitted when requires_document is true and has_document is false.",
+      "Document-gated submission allows submitted when has_document is true.",
+      "is_over_due true for active obligations before business_today.",
+      "is_over_due false for submitted/done obligations.",
+      "is_due_soon true for active obligations between business_today and configured window inclusive.",
+      "is_due_soon false for overdue obligations.",
+      "is_due_soon false for submitted/done obligations."
+    ],
+    "application_tests": [
+      "Status change increments version and creates audit in one successful operation.",
+      "Invalid status change does not mutate status, version, or audit.",
+      "Document-required failure does not mutate status, version, or audit.",
+      "Version conflict rejects stale expectedVersion."
+    ],
+    "api_tests": [
+      "Create and read obligation returns camelCase contract with masked companyTaxId only.",
+      "GET detail returns audit history after status change.",
+      "POST status-changes returns 422 for invalid transition.",
+      "POST status-changes returns 409 for version conflict.",
+      "Validation errors use consistent ErrorResponse shape."
+    ],
+    "security_tests": [
+      "Read schemas do not contain companyTaxId.",
+      "Audit events do not contain raw companyTaxId.",
+      "Masking returns only last four characters plus mask prefix."
+    ],
+    "quality_gates": [
+      "ruff check",
+      "ruff format --check",
+      "pytest"
+    ]
+  },
+  "traceability": {
+    "AC01": [
+      "ObligationCreateRequest",
+      "ObligationDetailResponse",
+      "PII encryption/masking",
+      "api create/read tests"
+    ],
+    "AC02": [
+      "Pydantic validation",
+      "VALIDATION_ERROR mapper"
+    ],
+    "AC03": [
+      "domain date policy is_over_due",
+      "domain tests"
+    ],
+    "AC04": [
+      "domain date policy excludes submitted/done",
+      "domain tests"
+    ],
+    "AC05": [
+      "domain date policy is_due_soon",
+      "DUE_SOON_WINDOW_DAYS"
+    ],
+    "AC06": [
+      "is_due_soon excludes overdue obligations"
+    ],
+    "AC07": [
+      "is_due_soon excludes submitted/done obligations"
+    ],
+    "AC08": [
+      "settings validation",
+      "injected due_soon_window_days tests"
+    ],
+    "AC09": [
+      "ChangeObligationStatus",
+      "audit transaction"
+    ],
+    "AC10": [
+      "transition policy",
+      "INVALID_STATUS_TRANSITION"
+    ],
+    "AC11": [
+      "document gate policy",
+      "DOCUMENT_REQUIRED_FOR_SUBMISSION"
+    ],
+    "AC12": [
+      "document metadata repository",
+      "status change transaction"
+    ],
+    "AC13": [
+      "available transition/read detail presenter"
+    ],
+    "AC14": [
+      "available transition/read detail presenter"
+    ],
+    "AC15": [
+      "optimistic locking in application service",
+      "OBLIGATION_VERSION_CONFLICT"
+    ],
+    "AC16": [
+      "audit model",
+      "detail response"
+    ],
+    "AC17": [
+      "repository not-found handling",
+      "OBLIGATION_NOT_FOUND mapper"
+    ],
+    "AC18": [
+      "delete use case",
+      "delete API test"
+    ]
+  },
+  "implementation_phases": [
+    {
+      "phase": "P1",
+      "goal": "Scaffold backend project and configuration.",
+      "tasks": [
+        "Create pyproject, app package, settings, FastAPI app factory, health route, and test setup.",
+        "Add docker-compose for PostgreSQL and .env.example with safe placeholders."
+      ],
+      "dependencies": [],
+      "definition_of_done": [
+        "App imports cleanly.",
+        "Health route test passes.",
+        "Settings validation is covered."
+      ]
+    },
+    {
+      "phase": "P2",
+      "goal": "Implement pure domain rules.",
+      "tasks": [
+        "Create enums, domain entity/value objects, transition policy, date derivation policy, document gate, and domain exceptions.",
+        "Write behavior tests for transitions, document gate, is_over_due, and is_due_soon."
+      ],
+      "dependencies": [
+        "P1"
+      ],
+      "definition_of_done": [
+        "Domain tests pass without database or FastAPI."
+      ]
+    },
+    {
+      "phase": "P3",
+      "goal": "Implement persistence and migrations.",
+      "tasks": [
+        "Create SQLAlchemy models, Alembic migration, repositories, and transaction helpers.",
+        "Store company tax id encrypted with last4 available for masking."
+      ],
+      "dependencies": [
+        "P1",
+        "P2"
+      ],
+      "definition_of_done": [
+        "Migration creates expected tables and indexes.",
+        "Repository tests can persist and read obligations, documents, and audit events."
+      ]
+    },
+    {
+      "phase": "P4",
+      "goal": "Implement application use cases.",
+      "tasks": [
+        "Create CRUD use cases, document metadata use cases, read presenters, and status change orchestration with optimistic locking and audit transaction."
+      ],
+      "dependencies": [
+        "P2",
+        "P3"
+      ],
+      "definition_of_done": [
+        "Application tests prove success, invalid transition, document block, and version conflict behavior."
+      ]
+    },
+    {
+      "phase": "P5",
+      "goal": "Expose API contract.",
+      "tasks": [
+        "Create Pydantic request/response schemas with camelCase aliases.",
+        "Create obligation routes and error handlers.",
+        "Ensure OpenAPI includes typed contracts."
+      ],
+      "dependencies": [
+        "P4"
+      ],
+      "definition_of_done": [
+        "API tests pass for create/read/status-change/error cases.",
+        "Raw companyTaxId is absent from read responses."
+      ]
+    },
+    {
+      "phase": "P6",
+      "goal": "Add docs and verification polish.",
+      "tasks": [
+        "Document backend setup, env vars, API routes, domain decisions, and test commands.",
+        "Run final quality gates."
+      ],
+      "dependencies": [
+        "P5"
+      ],
+      "definition_of_done": [
+        "README backend section is usable.",
+        "ruff and pytest pass."
+      ]
+    }
+  ],
+  "approval_gate": {
+    "next_step_after_approval": "Create specs/features/backend-obligations/todos.json with executable tasks, dependencies, and parallelization batches.",
+    "must_not_do_before_approval": [
+      "Do not scaffold code.",
+      "Do not install dependencies.",
+      "Do not create migrations.",
+      "Do not implement API routes."
+    ]
+  }
+}

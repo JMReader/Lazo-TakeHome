@@ -1,0 +1,374 @@
+{
+  "meta": {
+    "feature_id": "backend-obligations",
+    "document_type": "functional_specification",
+    "status": "approved",
+    "created_at": "2026-07-02",
+    "approved_at": "2026-07-02",
+    "source_inputs": [
+      "Copia de Prueba tecnica - Fullstack Engineer.md",
+      "E:/juan/all/Lazo/Decisions.md.md"
+    ]
+  },
+  "context_scan": {
+    "repository_state": "No application scaffold found yet. Workspace currently contains challenge and research documents only.",
+    "detected_stack": "No package.json, pyproject.toml, requirements file, app directory, src directory, api directory, db directory, or existing specs were present before this feature spec.",
+    "runtime_constraints": [
+      "Challenge requires a backend service for compliance obligations.",
+      "Challenge expects backend domain rules to be isolated from HTTP and persistence.",
+      "Challenge accepts PostgreSQL as recommended persistence and SQLite as acceptable fallback, but this functional spec does not choose implementation details."
+    ],
+    "likely_affected_modules": [
+      "Backend obligation domain behavior",
+      "Backend obligation read/write contract",
+      "Backend state transition behavior",
+      "Backend audit history behavior",
+      "Backend sensitive data handling"
+    ],
+    "test_setup_available": "No test framework is configured yet."
+  },
+  "scope": {
+    "product_goal": "Provide the backend behavior needed to track company compliance obligations with reliable state transitions, document-gated submission, masked sensitive data, overdue and due-soon calculation, audit history, and concurrency-safe status changes.",
+    "in_scope": [
+      "Create, read, update, and delete obligations.",
+      "Expose an operation to change an obligation status.",
+      "Validate all status transitions according to the allowed workflow.",
+      "Prevent submission when an obligation requires a document and no attached document exists.",
+      "Treat overdue and due soon as derived information, not as persisted workflow statuses.",
+      "Calculate both overdue and due soon in the backend from the same domain rules and due-soon configuration.",
+      "Accept the full company tax id on write while returning only a masked representation on read.",
+      "Record an audit event for every successful status change.",
+      "Expose obligation detail with current state, masked tax id, derived overdue flag, derived due-soon flag, valid next transitions, submission blocking reason when applicable, and status audit history.",
+      "Handle concurrent status changes so stale requests cannot silently overwrite newer changes.",
+      "Return consistent, machine-readable errors for not found, invalid transition, document-required submission, validation failure, and version conflict."
+    ],
+    "out_of_scope": [
+      "Real authentication and authorization.",
+      "Real file upload or binary document storage.",
+      "Tenant permissions and role-based access control.",
+      "Automatic reminders or notification scheduling.",
+      "Advanced search, pagination, and saved filters.",
+      "Full audit of every field edit.",
+      "Production deployment and observability.",
+      "PII key rotation or advanced secret-management flows.",
+      "Frontend implementation."
+    ]
+  },
+  "domain_language": {
+    "obligation": "A compliance task owned by a company or responsible person, with a due date, workflow status, optional document requirement, and sensitive company tax id.",
+    "document_required": "A business rule indicating that a supporting document must exist before the obligation can be submitted.",
+    "attached_document": "Metadata that represents the existence of a document for the obligation. The first scope may mock the file itself.",
+    "overdue": "A derived condition meaning the due date has passed and the obligation is not submitted or done.",
+    "due_soon": "A derived condition meaning the obligation is still active and its due date falls within the configured upcoming-due window.",
+    "due_soon_window": "A configurable number of calendar days used by the backend to decide whether an active obligation is due soon.",
+    "audit_event": "An immutable record of a successful status change.",
+    "expected_version": "The version the caller believes the obligation currently has when requesting a status change."
+  },
+  "use_cases": [
+    {
+      "id": "UC01",
+      "name": "Create obligation",
+      "primary_actor": "API client",
+      "description": "The client creates an obligation with required descriptive fields, due date, owner, document requirement flag, and full company tax id.",
+      "success_outcome": "The obligation is stored and subsequent reads expose safe, derived, and display-ready fields without leaking the raw company tax id."
+    },
+    {
+      "id": "UC02",
+      "name": "List obligations for dashboard",
+      "primary_actor": "Frontend dashboard",
+      "description": "The dashboard requests obligations and receives enough information to show status, due dates, overdue highlighting, due-soon highlighting, upcoming obligations, and masked tax id display.",
+      "success_outcome": "The client can render dashboard data without calculating domain-critical date states or status transitions itself."
+    },
+    {
+      "id": "UC03",
+      "name": "View obligation detail",
+      "primary_actor": "Frontend detail page",
+      "description": "The detail view requests one obligation and receives all user-facing fields, derived overdue state, derived due-soon state, available next transitions, submission blocking information, and status history.",
+      "success_outcome": "The client can render permitted actions and explain blocked submission without duplicating backend domain rules."
+    },
+    {
+      "id": "UC04",
+      "name": "Change obligation status",
+      "primary_actor": "API client",
+      "description": "The client requests a status change with the target status and the version it last read.",
+      "success_outcome": "A valid transition is applied, the obligation version advances, and an audit event is recorded."
+    },
+    {
+      "id": "UC05",
+      "name": "Reject invalid status transition",
+      "primary_actor": "API client",
+      "description": "The client requests a status change that is not allowed by the workflow.",
+      "success_outcome": "The change is rejected, the obligation remains unchanged, and no audit event is recorded."
+    },
+    {
+      "id": "UC06",
+      "name": "Block document-gated submission",
+      "primary_actor": "API client",
+      "description": "The client tries to submit an obligation that requires a document but has no attached document metadata.",
+      "success_outcome": "The submission is rejected, the obligation remains unchanged, and the response identifies the document requirement."
+    },
+    {
+      "id": "UC07",
+      "name": "Handle concurrent status changes",
+      "primary_actor": "Two API clients",
+      "description": "Two clients attempt to change the same obligation based on the same previous version.",
+      "success_outcome": "Only the first valid change succeeds. The stale request receives a conflict and must refresh before retrying."
+    },
+    {
+      "id": "UC08",
+      "name": "Read status audit history",
+      "primary_actor": "Frontend detail page",
+      "description": "The detail view displays each successful status change in chronological order.",
+      "success_outcome": "The user can inspect how the obligation moved through the workflow without exposing sensitive data."
+    }
+  ],
+  "business_rules": [
+    {
+      "id": "BR01",
+      "name": "Allowed statuses",
+      "rule": "An obligation status must be one of pending, in_progress, submitted, or done."
+    },
+    {
+      "id": "BR02",
+      "name": "Allowed status transitions",
+      "rule": "Allowed transitions are pending to in_progress, in_progress to submitted, in_progress to pending, submitted to done, submitted to in_progress, and done to in_progress."
+    },
+    {
+      "id": "BR03",
+      "name": "Invalid transitions are never persisted",
+      "rule": "A status transition outside the allowed workflow must be rejected and must not change obligation state, version, or audit history."
+    },
+    {
+      "id": "BR04",
+      "name": "Document-gated submission",
+      "rule": "If an obligation requires a document and has no attached document metadata, it cannot transition to submitted."
+    },
+    {
+      "id": "BR05",
+      "name": "Overdue is derived",
+      "rule": "An obligation is overdue when its due date is before the current business date and its status is neither submitted nor done."
+    },
+    {
+      "id": "BR06",
+      "name": "Overdue is not a workflow state",
+      "rule": "Overdue must not appear as a persisted obligation status or as a target status for transitions."
+    },
+    {
+      "id": "BR07",
+      "name": "Due soon is derived",
+      "rule": "An obligation is due soon when its due date is on or after the current business date, on or before the configured due-soon limit, and its status is neither submitted nor done."
+    },
+    {
+      "id": "BR08",
+      "name": "Due soon uses backend configuration",
+      "rule": "The backend must use a configurable due-soon window so the client does not decide the threshold independently."
+    },
+    {
+      "id": "BR09",
+      "name": "Due soon is not a workflow state",
+      "rule": "Due soon must not appear as a persisted obligation status or as a target status for transitions."
+    },
+    {
+      "id": "BR10",
+      "name": "Sensitive tax id write behavior",
+      "rule": "The API may accept the full company tax id when creating or updating an obligation."
+    },
+    {
+      "id": "BR11",
+      "name": "Sensitive tax id read behavior",
+      "rule": "Read responses must never include the raw company tax id and must expose only a masked value suitable for display."
+    },
+    {
+      "id": "BR12",
+      "name": "Sensitive tax id logging behavior",
+      "rule": "The raw company tax id must not appear in logs, error responses, audit events, or technical metadata."
+    },
+    {
+      "id": "BR13",
+      "name": "Audit successful status changes",
+      "rule": "Every successful status change must produce one audit event containing the previous status, next status, change time, actor placeholder, resulting obligation version, and optional reason."
+    },
+    {
+      "id": "BR14",
+      "name": "No audit for failed changes",
+      "rule": "If a status change fails validation or concurrency checks, no audit event is recorded."
+    },
+    {
+      "id": "BR15",
+      "name": "Concurrent status changes require freshness",
+      "rule": "A status change request must identify the obligation version it was based on. If that version is stale, the request is rejected as a conflict."
+    },
+    {
+      "id": "BR16",
+      "name": "Frontend consumes available actions",
+      "rule": "The backend must provide enough action information for the frontend to render valid transitions and blocked submission states without recreating the state machine."
+    },
+    {
+      "id": "BR17",
+      "name": "Business dates",
+      "rule": "Due dates are business calendar dates, not timestamps with times of day."
+    },
+    {
+      "id": "BR18",
+      "name": "Owner is required",
+      "rule": "An obligation cannot exist without an owner."
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC01",
+      "title": "Create obligation with safe read response",
+      "given": "A client submits valid obligation data including a full company tax id.",
+      "when": "The obligation is created and then read.",
+      "then": "The read response includes the obligation fields, a masked company tax id, current version, derived overdue flag, derived due-soon flag, and available transitions, but never includes the raw company tax id."
+    },
+    {
+      "id": "AC02",
+      "title": "Reject missing owner",
+      "given": "A client submits obligation data without an owner.",
+      "when": "The create or update operation is requested.",
+      "then": "The request is rejected with a consistent validation error and no obligation is created or updated."
+    },
+    {
+      "id": "AC03",
+      "title": "Compute overdue for active obligations",
+      "given": "An obligation has a due date before the current business date and status pending or in_progress.",
+      "when": "The obligation is read.",
+      "then": "The response marks the obligation as overdue."
+    },
+    {
+      "id": "AC04",
+      "title": "Do not mark submitted or done obligations overdue",
+      "given": "An obligation has a due date before the current business date and status submitted or done.",
+      "when": "The obligation is read.",
+      "then": "The response does not mark the obligation as overdue."
+    },
+    {
+      "id": "AC05",
+      "title": "Compute due soon for active obligations",
+      "given": "An obligation has status pending or in_progress and a due date inside the backend-configured due-soon window, including today.",
+      "when": "The obligation is read.",
+      "then": "The response marks the obligation as due soon."
+    },
+    {
+      "id": "AC06",
+      "title": "Do not mark overdue obligations due soon",
+      "given": "An obligation has a due date before the current business date.",
+      "when": "The obligation is read.",
+      "then": "The response may mark it as overdue but does not mark it as due soon."
+    },
+    {
+      "id": "AC07",
+      "title": "Do not mark submitted or done obligations due soon",
+      "given": "An obligation has a due date inside the backend-configured due-soon window and status submitted or done.",
+      "when": "The obligation is read.",
+      "then": "The response does not mark the obligation as due soon."
+    },
+    {
+      "id": "AC08",
+      "title": "Due-soon threshold comes from backend configuration",
+      "given": "The backend due-soon window is configured to a specific number of calendar days.",
+      "when": "Obligations are read.",
+      "then": "The due-soon flag is calculated using that configured window rather than any client-provided threshold."
+    },
+    {
+      "id": "AC09",
+      "title": "Apply valid transition",
+      "given": "An obligation is pending and the client has its current version.",
+      "when": "The client requests a transition to in_progress.",
+      "then": "The status changes to in_progress, the version advances, and one audit event is visible in the obligation history."
+    },
+    {
+      "id": "AC10",
+      "title": "Reject invalid transition",
+      "given": "An obligation is pending and the client has its current version.",
+      "when": "The client requests a transition to done.",
+      "then": "The request is rejected as an invalid status transition, the status remains pending, the version does not advance, and no audit event is created."
+    },
+    {
+      "id": "AC11",
+      "title": "Block submission without required document",
+      "given": "An obligation is in_progress, requires a document, has no attached document metadata, and the client has its current version.",
+      "when": "The client requests a transition to submitted.",
+      "then": "The request is rejected with a document-required error, the obligation remains in_progress, and no audit event is created."
+    },
+    {
+      "id": "AC12",
+      "title": "Allow submission with required document present",
+      "given": "An obligation is in_progress, requires a document, has attached document metadata, and the client has its current version.",
+      "when": "The client requests a transition to submitted.",
+      "then": "The status changes to submitted, the version advances, and one audit event is visible in the obligation history."
+    },
+    {
+      "id": "AC13",
+      "title": "Expose blocked submit reason on detail",
+      "given": "An obligation is in_progress, requires a document, and has no attached document metadata.",
+      "when": "The obligation detail is read.",
+      "then": "The response indicates that submission is blocked because a document is required."
+    },
+    {
+      "id": "AC14",
+      "title": "Expose available transitions on detail",
+      "given": "An obligation exists in any valid status.",
+      "when": "The obligation detail is read.",
+      "then": "The response lists the target statuses currently available according to the backend workflow and domain rules."
+    },
+    {
+      "id": "AC15",
+      "title": "Reject stale concurrent update",
+      "given": "Two clients read obligation version 3.",
+      "when": "The first client successfully changes the status and the second client later submits a change using expected version 3.",
+      "then": "The second request is rejected with a version conflict, the first change remains intact, and no audit event is created for the rejected request."
+    },
+    {
+      "id": "AC16",
+      "title": "Read audit history",
+      "given": "An obligation has multiple successful status changes.",
+      "when": "The obligation detail is read.",
+      "then": "The response includes the chronological status history with from status, to status, changed time, actor placeholder, resulting version, and no raw sensitive values."
+    },
+    {
+      "id": "AC17",
+      "title": "Return not found consistently",
+      "given": "A client requests an obligation that does not exist.",
+      "when": "The read, update, delete, or status-change operation is requested.",
+      "then": "The response uses a consistent not-found error shape."
+    },
+    {
+      "id": "AC18",
+      "title": "Delete removes obligation from normal reads",
+      "given": "An obligation exists.",
+      "when": "The client deletes the obligation.",
+      "then": "The obligation no longer appears in normal list or detail reads."
+    }
+  ],
+  "ux_behavior_and_integration_expectations": [
+    "The frontend receives valid transitions from the backend and renders actions from that data.",
+    "The frontend receives a blocked submission reason from the backend and does not need to infer the document-gated rule.",
+    "The frontend receives masked tax id values only.",
+    "The frontend can show loading and error states using stable backend error codes.",
+    "Dashboard KPIs can be computed from backend-provided status, overdue, and due-soon information in the first scope."
+  ],
+  "open_questions": [
+    {
+      "id": "Q01",
+      "question": "Should delete be hard delete for challenge simplicity or soft delete for auditability?",
+      "default_assumption_for_next_gate": "Use hard delete unless the technical spec chooses soft delete as a low-cost auditability improvement."
+    },
+    {
+      "id": "Q02",
+      "question": "Should document metadata be created through a dedicated document operation or embedded in obligation create/update for the first scope?",
+      "default_assumption_for_next_gate": "Prefer a small dedicated document metadata operation if it keeps the domain rule clearer."
+    },
+    {
+      "id": "Q03",
+      "question": "Should dashboard KPIs be served by a dedicated summary endpoint or computed by the frontend from a list response in the first scope?",
+      "default_assumption_for_next_gate": "Keep first scope simple by allowing frontend computation from list data unless performance concerns appear."
+    },
+    {
+      "id": "Q04",
+      "question": "What should the default due-soon window be?",
+      "default_assumption_for_next_gate": "Use 30 calendar days as a configurable default unless the user chooses a different window."
+    }
+  ]
+}

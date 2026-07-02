@@ -1,0 +1,92 @@
+Fullstack Engineer — Lazo
+Lazo is building the AI-powered operating system for modern startups — automating everything founders shouldn't have to think about: finance, legal, tax, payroll, and fundraising, all under one roof. You'll have massive ownership and work directly with founders.
+
+The role
+The Software Engineer will design, develop, and maintain robust software solutions for the Lazo Platform. You will work across a modern TypeScript and Python stack, building product features that help startup founders manage incorporation, compliance, and accountability in a high-trust, regulated domain.
+
+As part of the product team, you will translate business requirements into scalable technical solutions that drive product growth and improve user experience. You'll collaborate closely with product management, design, and engineering to ship high-quality software in a fast-paced startup environment.
+
+This position reports to the Chief Technology Officer.
+
+Tech stack
+Lazo is built as an Nx polyglot monorepo (pnpm workspaces) deployed to Container Apps:
+
+Frontend — Next.js 16 (App Router, React Server Components) + React 19 + TypeScript, organized with Feature-Sliced Design (FSD).
+
+Backend — FastAPI (Python 3.11) with async SQLAlchemy 2.0 over PostgreSQL.
+
+Data — PostgreSQL per service; Prisma and SQLAlchemy as the ORM seams.
+
+Testing — BDD/Gherkin across layers: Vitest + vitest-cucumber (TS), pytest-bdd + httpx (FastAPI), Playwright (e2e).
+
+Infra & delivery — GitHub Actions CI/CD, Docker, Container Apps, Key Vault, OIDC federated auth.
+
+Lazo handles sensitive data — SSNs, EINs, passports, bank accounts, cap tables, tax filings. Security, data integrity, and auditability are the top priorities, ahead of availability, privacy/compliance (SOC 2, GDPR, CCPA), testability, and maintainability.
+
+What you'll do
+Take specs and features all the way to production — backend, frontend, tests, deploy.
+
+Write Gherkin tests before writing code. A claim that isn't backed by a test doesn't exist.
+
+Use AI tools (Claude, Claude Code, MCP) as part of your daily workflow, not as an experiment.
+
+Contribute to technical decisions with conviction: propose, question, improve.
+
+Handle sensitive data (SSNs, EINs, bank accounts, cap tables) with the seriousness it demands — security, tenant isolation, auditability, mask-on-read.
+
+Collaborate directly with the team to understand the problem before solving it.
+
+What we're looking for
+Hard skills:
+
+Solid fullstack experience — backend and frontend in production environments.
+
+Strong command of React / Next.js (App Router, RSC) and TypeScript.
+
+Familiarity with async, event-driven architectures and RESTful API design.
+
+Comfort with PostgreSQL and ORMs (SQLAlchemy, Prisma, or similar).
+
+Experience writing tests — unit, integration, and ideally BDD/Gherkin.
+
+Python knowledge at an architectural level (not necessarily years of hands-on production experience).
+
+Exposure to cloud environments (Azure, AWS, or GCP) and CI/CD pipelines.
+
+Mindset:
+
+Background in high-stakes environments — banking, fintech, or startups where systems have to work, no excuses.
+
+Actively curious: you try new things before anyone asks you to.
+
+Strong fundamentals mindset: you're not interested in the quick hack that blows up in production.
+
+Genuinely AI-first: Claude Code, MCP, AI-assisted workflows are tools you already use or pick up fast.
+
+Able to work from specs as input and code as output — Specs Driven Development.
+
+Advanced English.
+
+Benefits
+100% remote
+
+Flexible work culture — we measure by results
+
+3 weeks of vacation
+
+Week off between Christmas and New Year's Eve
+
+Health benefits
+
+Birthday day off
+
+Interview Process
+Silver Recruiter Screen
+
+Take-home Challenge
+
+Take-home review
+
+Client Behavioral Interview
+
+A
