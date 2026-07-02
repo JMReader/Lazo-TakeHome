@@ -1,0 +1,583 @@
+{
+  "feature_id": "backend-obligations",
+  "document_type": "execution_todos",
+  "status": "implemented",
+  "created_at": "2026-07-02",
+  "approved_at": "2026-07-02",
+  "implemented_at": "2026-07-02",
+  "source_specs": [
+    "specs/features/backend-obligations/functional-spec.json",
+    "specs/features/backend-obligations/technical-spec.json"
+  ],
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Scaffold backend project under /backend",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [],
+      "outputs": [
+        "backend/pyproject.toml",
+        "backend/app/__init__.py",
+        "backend/app/main.py",
+        "backend/tests/"
+      ],
+      "exit_criteria": [
+        "Backend package imports from /backend.",
+        "Dependencies include FastAPI, Pydantic v2, pydantic-settings, SQLAlchemy asyncio, asyncpg, Alembic, cryptography, pytest, pytest-asyncio, httpx, and ruff.",
+        "Repository remains compatible with future /frontend."
+      ]
+    },
+    {
+      "id": "T02",
+      "title": "Add app factory and health route",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T01"
+      ],
+      "outputs": [
+        "backend/app/main.py",
+        "backend/app/api/health.py",
+        "backend/tests/api/test_health.py"
+      ],
+      "exit_criteria": [
+        "GET /health returns {\"status\":\"ok\"}.",
+        "Health test passes."
+      ]
+    },
+    {
+      "id": "T03",
+      "title": "Create environment config and .env.example",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": true,
+      "depends_on": [
+        "T01"
+      ],
+      "outputs": [
+        ".env.example",
+        "backend/app/config/settings.py",
+        "backend/tests/config/test_settings.py"
+      ],
+      "exit_criteria": [
+        ".env.example includes SUPABASE_DATABASE_URL, PII_ENCRYPTION_KEY, DUE_SOON_WINDOW_DAYS, APP_ENV, and LOG_LEVEL placeholders.",
+        "No real secrets are committed.",
+        "DUE_SOON_WINDOW_DAYS validates as integer >= 0.",
+        "PII_ENCRYPTION_KEY is required outside test override."
+      ]
+    },
+    {
+      "id": "T04",
+      "title": "Create Supabase/Postgres async database wiring",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T03"
+      ],
+      "outputs": [
+        "backend/app/infrastructure/db/session.py"
+      ],
+      "exit_criteria": [
+        "Async SQLAlchemy engine reads SUPABASE_DATABASE_URL only from settings.",
+        "Session dependency is available for application/API layers.",
+        "No Supabase credentials are hardcoded."
+      ]
+    },
+    {
+      "id": "T05",
+      "title": "Implement domain enums, entities, and exceptions",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": true,
+      "depends_on": [
+        "T01"
+      ],
+      "outputs": [
+        "backend/app/domain/obligations.py",
+        "backend/app/domain/exceptions.py"
+      ],
+      "exit_criteria": [
+        "Obligation types and statuses are represented without HTTP or ORM dependencies.",
+        "Domain exceptions exist for invalid transition, document required, version conflict, not found, and invalid invariant."
+      ]
+    },
+    {
+      "id": "T06",
+      "title": "Implement status transition and document gate policies",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T05"
+      ],
+      "outputs": [
+        "backend/app/domain/policies.py",
+        "backend/tests/domain/test_status_transitions.py",
+        "backend/tests/domain/test_document_gate.py"
+      ],
+      "exit_criteria": [
+        "Valid transition matrix is accepted.",
+        "Invalid transitions are rejected.",
+        "Submission is rejected when requires_document is true and no document metadata exists.",
+        "Submission is allowed when required document metadata exists."
+      ]
+    },
+    {
+      "id": "T07",
+      "title": "Implement backend date-derived flags",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T05",
+        "T03"
+      ],
+      "outputs": [
+        "backend/app/domain/date_rules.py",
+        "backend/tests/domain/test_due_flags.py"
+      ],
+      "exit_criteria": [
+        "is_overdue uses due_date < business_today and excludes submitted/done.",
+        "is_due_soon uses configured DUE_SOON_WINDOW_DAYS and excludes overdue/submitted/done.",
+        "Tests cover today, overdue, due soon, submitted, and done cases."
+      ]
+    },
+    {
+      "id": "T08",
+      "title": "Implement available transition presenter rules",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T06"
+      ],
+      "outputs": [
+        "backend/app/domain/transition_view.py",
+        "backend/tests/domain/test_transition_view.py"
+      ],
+      "exit_criteria": [
+        "availableTransitions is string[].",
+        "submitBlockedReason is DOCUMENT_REQUIRED or null.",
+        "No richer availableActions model is introduced."
+      ]
+    },
+    {
+      "id": "T09",
+      "title": "Implement requiresDocument update invariant",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T06"
+      ],
+      "outputs": [
+        "backend/app/domain/update_invariants.py",
+        "backend/tests/domain/test_update_invariants.py"
+      ],
+      "exit_criteria": [
+        "Submitted/done obligation cannot become requires_document=true without document metadata.",
+        "Invariant test covers accepted and rejected update cases."
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "Implement PII normalization, masking, and encryption helpers",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": true,
+      "depends_on": [
+        "T03"
+      ],
+      "outputs": [
+        "backend/app/infrastructure/security/tax_id.py",
+        "backend/tests/security/test_tax_id.py"
+      ],
+      "exit_criteria": [
+        "12-3456789 normalizes last4 as 6789.",
+        "Full companyTaxId is encrypted using PII_ENCRYPTION_KEY.",
+        "Masked reads expose only companyTaxIdMasked.",
+        "Tests use a deterministic test key."
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "Create SQLAlchemy models and Alembic migration",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T04",
+        "T05"
+      ],
+      "outputs": [
+        "backend/app/infrastructure/db/models.py",
+        "backend/alembic/",
+        "backend/alembic/versions/"
+      ],
+      "exit_criteria": [
+        "Tables exist for obligations, obligation_documents, and obligation_status_audit.",
+        "Indexes exist for due_date, status, and audit lookup.",
+        "Document lifecycle and status audit lifecycle are separate.",
+        "Migration targets Supabase/Postgres-compatible SQL."
+      ]
+    },
+    {
+      "id": "T12",
+      "title": "Implement repository read and create methods",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T11",
+        "T10"
+      ],
+      "outputs": [
+        "backend/app/infrastructure/db/repositories.py",
+        "backend/tests/infrastructure/test_obligation_repository_create_read.py"
+      ],
+      "exit_criteria": [
+        "Create stores status pending and version 1.",
+        "company_tax_id_encrypted and company_tax_id_last4 are persisted.",
+        "List/detail reads can include document and audit rows.",
+        "Raw companyTaxId is not stored in audit."
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "Implement atomic versioned repository mutations",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T12"
+      ],
+      "outputs": [
+        "backend/app/infrastructure/db/repositories.py",
+        "backend/tests/infrastructure/test_atomic_versioning.py"
+      ],
+      "exit_criteria": [
+        "Generic update uses atomic conditional write by id and expectedVersion.",
+        "Document attach/delete uses atomic conditional write by id and expectedVersion.",
+        "Stale expectedVersion returns conflict and does not mutate rows."
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "Implement status change repository transaction with audit",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T13"
+      ],
+      "outputs": [
+        "backend/app/infrastructure/db/repositories.py",
+        "backend/tests/infrastructure/test_status_audit_transaction.py"
+      ],
+      "exit_criteria": [
+        "Status change uses atomic conditional write by id and expectedVersion.",
+        "Successful status change increments version and creates exactly one audit event.",
+        "Stale status change creates no audit.",
+        "Audit insert failure rolls back status/version mutation."
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "Implement application read presenters",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T07",
+        "T08",
+        "T12"
+      ],
+      "outputs": [
+        "backend/app/application/presenters.py",
+        "backend/app/application/queries.py",
+        "backend/tests/application/test_read_presenters.py"
+      ],
+      "exit_criteria": [
+        "List/detail responses include isOverdue, isDueSoon, availableTransitions, submitBlockedReason, companyTaxIdMasked, document metadata, and audit history.",
+        "Raw companyTaxId is not exposed."
+      ]
+    },
+    {
+      "id": "T16",
+      "title": "Implement application create/update/delete use cases",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T09",
+        "T13",
+        "T15"
+      ],
+      "outputs": [
+        "backend/app/application/use_cases.py",
+        "backend/tests/application/test_obligation_mutations.py"
+      ],
+      "exit_criteria": [
+        "Create always sets pending/version 1.",
+        "Generic update rejects status mutation.",
+        "Generic update requires expectedVersion and increments version.",
+        "requiresDocument update invariant is enforced.",
+        "Hard delete removes obligation from normal reads/lists."
+      ]
+    },
+    {
+      "id": "T17",
+      "title": "Implement application document metadata use cases",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T13",
+        "T15"
+      ],
+      "outputs": [
+        "backend/app/application/use_cases.py",
+        "backend/tests/application/test_document_metadata.py"
+      ],
+      "exit_criteria": [
+        "Attach document metadata requires expectedVersion.",
+        "Missing storageKey generates mock://obligations/{obligationId}/{fileName}.",
+        "Delete document metadata requires expectedVersion.",
+        "Document deletion preserves status audit history."
+      ]
+    },
+    {
+      "id": "T18",
+      "title": "Implement application status change use case",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T06",
+        "T14",
+        "T15"
+      ],
+      "outputs": [
+        "backend/app/application/use_cases.py",
+        "backend/tests/application/test_status_changes.py"
+      ],
+      "exit_criteria": [
+        "Valid status transition succeeds.",
+        "Invalid status transition fails with INVALID_STATUS_TRANSITION.",
+        "Document-gated submission fails without document metadata.",
+        "Document-gated submission succeeds with document metadata.",
+        "Stale expectedVersion fails with OBLIGATION_VERSION_CONFLICT.",
+        "Successful status change creates exactly one audit event."
+      ]
+    },
+    {
+      "id": "T19",
+      "title": "Create Pydantic API schemas and error contract",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": true,
+      "depends_on": [
+        "T05"
+      ],
+      "outputs": [
+        "backend/app/api/schemas.py",
+        "backend/app/api/errors.py",
+        "backend/tests/api/test_schema_validation.py"
+      ],
+      "exit_criteria": [
+        "HTTP JSON uses camelCase.",
+        "Create schema rejects status and version.",
+        "Update schema rejects status and unknown fields.",
+        "ErrorResponse has code, message, and details.",
+        "Read schemas do not include companyTaxId."
+      ]
+    },
+    {
+      "id": "T20",
+      "title": "Expose obligation API routes",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T16",
+        "T17",
+        "T18",
+        "T19"
+      ],
+      "outputs": [
+        "backend/app/api/obligations.py",
+        "backend/tests/api/test_obligation_routes.py"
+      ],
+      "exit_criteria": [
+        "Routes exist for list, create, detail, update, delete, PATCH /status, PUT /document, and DELETE /document.",
+        "PATCH /api/obligations/{obligationId}/status is the only route that can change workflow status.",
+        "Routes return consistent error codes."
+      ]
+    },
+    {
+      "id": "T21",
+      "title": "Add end-to-end backend behavior tests",
+      "owner_role": "qa_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T20"
+      ],
+      "outputs": [
+        "backend/tests/api/test_backend_behaviors.py"
+      ],
+      "exit_criteria": [
+        "Tests cover valid status transition.",
+        "Tests cover invalid status transition.",
+        "Tests cover document-gated submission rejected and allowed.",
+        "Tests cover overdue and due soon calculation.",
+        "Tests cover raw companyTaxId never appears in read response.",
+        "Tests cover generic update cannot modify status.",
+        "Tests cover stale expectedVersion returns 409 and creates no audit.",
+        "Tests cover document deletion does not delete status audit history."
+      ]
+    },
+    {
+      "id": "T22",
+      "title": "Document backend setup and API decisions",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": true,
+      "depends_on": [
+        "T03",
+        "T20"
+      ],
+      "outputs": [
+        "README.md"
+      ],
+      "exit_criteria": [
+        "README explains backend setup from fresh clone.",
+        "README documents Supabase env vars and no-secret policy.",
+        "README documents generating PII_ENCRYPTION_KEY.",
+        "README documents migrations, tests, and API route overview.",
+        "README states key domain decisions and out-of-scope items."
+      ]
+    },
+    {
+      "id": "T23",
+      "title": "Run final backend quality gates",
+      "owner_role": "backend_engineer",
+      "status": "done",
+      "parallelizable": false,
+      "depends_on": [
+        "T21",
+        "T22"
+      ],
+      "outputs": [
+        "quality gate results"
+      ],
+      "exit_criteria": [
+        "ruff check passes.",
+        "ruff format --check passes.",
+        "pytest passes.",
+        "Any unavailable external Supabase verification is reported clearly."
+      ]
+    }
+  ],
+  "parallel_execution_batches": [
+    {
+      "batch": "B1",
+      "mode": "sequential",
+      "tasks": [
+        "T01",
+        "T02"
+      ],
+      "reason": "Create the backend skeleton before other files depend on paths and imports."
+    },
+    {
+      "batch": "B2",
+      "mode": "parallel",
+      "tasks": [
+        "T03",
+        "T05",
+        "T19"
+      ],
+      "reason": "Configuration, domain shape, and schema contracts can start after scaffold with limited shared-write overlap."
+    },
+    {
+      "batch": "B3",
+      "mode": "parallel",
+      "tasks": [
+        "T04",
+        "T06",
+        "T07",
+        "T10"
+      ],
+      "reason": "Database wiring, domain policies, due flags, and PII helpers are independent once config/domain basics exist."
+    },
+    {
+      "batch": "B4",
+      "mode": "parallel",
+      "tasks": [
+        "T08",
+        "T09",
+        "T11"
+      ],
+      "reason": "Transition presentation, update invariants, and persistence models touch separate modules."
+    },
+    {
+      "batch": "B5",
+      "mode": "sequential",
+      "tasks": [
+        "T12",
+        "T13",
+        "T14"
+      ],
+      "reason": "Repository operations build on each other and share the same persistence files."
+    },
+    {
+      "batch": "B6",
+      "mode": "parallel",
+      "tasks": [
+        "T15",
+        "T16",
+        "T17",
+        "T18"
+      ],
+      "reason": "Application use cases can be split by behavior after repositories and domain policies exist, but shared files require coordination."
+    },
+    {
+      "batch": "B7",
+      "mode": "sequential",
+      "tasks": [
+        "T20",
+        "T21"
+      ],
+      "reason": "API routes must exist before end-to-end backend behavior tests can be finalized."
+    },
+    {
+      "batch": "B8",
+      "mode": "parallel",
+      "tasks": [
+        "T22"
+      ],
+      "reason": "Documentation can be completed after routes exist."
+    },
+    {
+      "batch": "B9",
+      "mode": "sequential",
+      "tasks": [
+        "T23"
+      ],
+      "reason": "Final quality gates run after implementation, tests, and docs are complete."
+    }
+  ],
+  "approval_gate": {
+    "next_step_after_approval": "Start implementation under /backend according to these tasks.",
+    "must_not_do_before_approval": [
+      "Do not scaffold code.",
+      "Do not install dependencies.",
+      "Do not create migrations.",
+      "Do not implement API routes."
+    ]
+  }
+}

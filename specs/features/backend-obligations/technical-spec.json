@@ -2,8 +2,9 @@
   "meta": {
     "feature_id": "backend-obligations",
     "document_type": "technical_specification",
-    "status": "pending_approval",
+    "status": "approved",
     "created_at": "2026-07-02",
+    "approved_at": "2026-07-02",
     "depends_on": [
       "specs/features/backend-obligations/functional-spec.json"
     ]
@@ -22,6 +23,8 @@
       "Consistent error contract"
     ],
     "constraints": [
+      "Backend code must live under a new /backend folder in this repository.",
+      "The repository layout must remain compatible with a future /frontend folder in the same repository.",
       "Domain rules must not live in HTTP handlers.",
       "Domain rules must not depend on ORM models or database sessions.",
       "Frontend must consume available transitions and date-derived flags from the backend.",
@@ -33,20 +36,22 @@
       "language": "Python 3.11",
       "framework": "FastAPI",
       "validation": "Pydantic v2",
-      "persistence": "PostgreSQL via async SQLAlchemy 2.0 AND SUPABASE",
+      "persistence": "Supabase hosted PostgreSQL via async SQLAlchemy 2.0",
       "migrations": "Alembic",
-      "dependency_management": "pyproject.toml"
+      "dependency_management": "backend/pyproject.toml",
+      "project_root": "backend"
     },
     "module_boundaries": {
-      "app/api": {
+      "backend/app/api": {
         "responsibility": "HTTP routes, request parsing, response schemas, dependency injection, and error mapping only.",
         "must_not_do": [
           "No status transition decisions.",
           "No overdue or due-soon date logic.",
-          "No direct SQL mutation for status changes."
+          "No direct SQL mutation for status changes.",
+          "No generic obligation update route may accept status changes."
         ]
       },
-      "app/application": {
+      "backend/app/application": {
         "responsibility": "Use cases and transaction orchestration.",
         "examples": [
           "CreateObligation",
@@ -58,20 +63,20 @@
           "GetObligationDetail"
         ]
       },
-      "app/domain": {
+      "backend/app/domain": {
         "responsibility": "Pure business rules independent from FastAPI, SQLAlchemy, and Pydantic schemas.",
         "examples": [
           "ObligationStatus enum",
           "Obligation domain entity",
           "Status transition policy",
           "Document-gated submission policy",
-          "Business date derivation for is_over_due and is_due_soon",
+          "Business date derivation for is_overdue and is_due_soon",
           "Available transition calculation",
           "Domain exceptions"
         ]
       },
-      "app/infrastructure/db": {
-        "responsibility": "SQLAlchemy models, database session factory, repositories, and transaction-safe persistence.",
+      "backend/app/infrastructure/db": {
+        "responsibility": "SQLAlchemy models, Supabase/Postgres database session factory, repositories, and transaction-safe persistence.",
         "examples": [
           "ObligationModel",
           "ObligationDocumentModel",
@@ -79,31 +84,44 @@
           "SqlAlchemyObligationRepository"
         ]
       },
-      "app/infrastructure/security": {
+      "backend/app/infrastructure/security": {
         "responsibility": "Company tax id encryption, masking, and safe helper functions.",
         "must_not_do": [
           "No logging of raw PII.",
           "No returning raw PII through schema helpers."
         ]
       },
-      "app/config": {
-        "responsibility": "Environment-driven settings such as database URL, due-soon window, encryption key, and logging level."
+      "backend/app/config": {
+        "responsibility": "Environment-driven settings such as Supabase database URL, due-soon window, encryption key, and logging level."
       }
     },
     "domain_flow": {
       "status_change": [
         "HTTP route receives targetStatus, expectedVersion, and optional reason.",
         "Application service loads obligation aggregate and document metadata through repository.",
-        "Application service verifies expectedVersion against the current obligation version.",
         "Domain policy validates requested status transition.",
         "Domain policy validates document requirement when target status is submitted.",
-        "Repository persists status, increments version, and inserts audit event in one database transaction.",
+        "Repository enforces optimistic locking at the database write boundary with an atomic conditional mutation by id and expectedVersion, or an equivalent transaction-safe approach.",
+        "If current version matches expectedVersion, repository persists status, increments version, and inserts exactly one audit event in one database transaction.",
+        "If current version does not match expectedVersion, repository returns a version conflict, does not mutate the obligation, and does not create audit.",
         "Application service returns fresh obligation detail with derived fields and available transitions."
+      ],
+      "generic_update": [
+        "HTTP route receives editable fields and expectedVersion.",
+        "Pydantic schema rejects forbidden or unknown fields, including status.",
+        "Application service validates that requiresDocument changes do not leave submitted or done obligations without document metadata.",
+        "Repository enforces optimistic locking at the database write boundary, applies changes, and increments version.",
+        "Generic field updates do not create status audit events."
+      ],
+      "document_metadata_change": [
+        "HTTP route receives document metadata plus expectedVersion for attach or delete.",
+        "Repository enforces optimistic locking at the database write boundary and increments obligation version because the effective document-gated state changes.",
+        "Document metadata attach/delete never deletes status audit history and never writes raw PII or document content to audit metadata."
       ],
       "read_model": [
         "Repository loads database rows.",
         "Application layer maps rows to domain/read DTOs.",
-        "Domain date policy calculates is_over_due and is_due_soon using injected business date and configured due_soon_window_days.",
+        "Domain date policy calculates is_overdue and is_due_soon using injected business date and configured due_soon_window_days.",
         "Security helper masks company tax id from stored encrypted value or last4.",
         "API schema serializes camelCase fields for the frontend."
       ]
@@ -111,7 +129,7 @@
     "resolved_open_questions": {
       "delete_behavior": {
         "decision": "Use hard delete for first scope.",
-        "rationale": "The challenge asks for CRUD and only requires audit trail for status changes. Soft delete is defensible but adds query filters and lifecycle rules that do not improve the core evaluated domain behavior for this small scope.",
+        "rationale": "The challenge asks for CRUD and only requires audit trail for status changes. Soft delete is defensible but adds query filters and lifecycle rules that do not improve the core evaluated domain behavior for this small scope. Deleting an obligation removes it from normal reads/lists.",
         "future_option": "Move to soft delete if deletion audit or recovery becomes a requirement."
       },
       "document_metadata_operation": {
@@ -125,6 +143,18 @@
       "due_soon_default": {
         "decision": "Default DUE_SOON_WINDOW_DAYS to 30 calendar days.",
         "rationale": "Thirty days is easy to explain for compliance obligations, configurable for future product changes, and broad enough for dashboard warnings."
+      },
+      "repository_layout": {
+        "decision": "Create backend code inside /backend in the current repository.",
+        "rationale": "The frontend will later live in the same repository, likely under /frontend, so the backend must not be scaffolded as a separate repo."
+      },
+      "database_provider": {
+        "decision": "Use Supabase as hosted PostgreSQL through SUPABASE_DATABASE_URL.",
+        "rationale": "The backend stays a normal FastAPI/Postgres service while using Supabase as the managed database provider. Supabase credentials are environment variables only and never hardcoded."
+      },
+      "transition_response_shape": {
+        "decision": "Keep availableTransitions: string[] and submitBlockedReason: string | null for this scope.",
+        "rationale": "A richer availableActions model is a reasonable future improvement, but intentionally out of scope to keep the implementation small and focused."
       }
     }
   },
@@ -148,7 +178,7 @@
         "requires_document",
         "company_tax_id_encrypted",
         "company_tax_id_last4",
-        "is_over_due",
+        "is_overdue",
         "is_due_soon",
         "expected_version"
       ]
@@ -201,8 +231,8 @@
         }
       },
       {
-        "method": "POST",
-        "path": "/api/obligations/{obligationId}/status-changes",
+        "method": "PATCH",
+        "path": "/api/obligations/{obligationId}/status",
         "purpose": "Change obligation workflow status with optimistic locking.",
         "request": "StatusChangeRequest",
         "response": "ObligationDetailResponse"
@@ -226,11 +256,18 @@
         "type": "annual_report | franchise_tax | boi_report | registered_agent_renewal",
         "title": "non-empty string",
         "description": "string",
-        "status": "optional pending | in_progress | submitted | done; default pending, but submitted still requires document rule",
         "dueDate": "YYYY-MM-DD",
         "owner": "non-empty string",
         "requiresDocument": "boolean",
-        "companyTaxId": "non-empty string"
+        "companyTaxId": "non-empty string",
+        "serverDefaults": {
+          "status": "pending",
+          "version": 1
+        },
+        "forbiddenFields": [
+          "status",
+          "version"
+        ]
       },
       "ObligationUpdateRequest": {
         "type": "optional obligation type",
@@ -240,7 +277,12 @@
         "owner": "optional non-empty string",
         "requiresDocument": "optional boolean",
         "companyTaxId": "optional non-empty string",
-        "expectedVersion": "integer"
+        "expectedVersion": "integer",
+        "forbiddenFields": [
+          "status",
+          "version"
+        ],
+        "unknownFields": "reject"
       },
       "StatusChangeRequest": {
         "targetStatus": "pending | in_progress | submitted | done",
@@ -251,7 +293,8 @@
         "fileName": "non-empty string",
         "contentType": "non-empty string",
         "sizeBytes": "positive integer",
-        "storageKey": "optional string"
+        "storageKey": "optional string; if omitted backend generates mock://obligations/{obligationId}/{fileName}",
+        "expectedVersion": "integer"
       },
       "ObligationListItem": {
         "id": "uuid",
@@ -363,6 +406,11 @@
       "request_id": "text nullable",
       "metadata": "jsonb not null default empty object"
     },
+    "cascade_rules": [
+      "Deleting or replacing obligation document metadata must not delete status audit history.",
+      "Deleting an obligation removes it from normal reads/lists for this challenge; in a production compliance system, soft delete would likely be preferred to preserve historical accountability.",
+      "Document lifecycle and status audit lifecycle are independent."
+    ],
     "indexes": [
       "obligations(due_date)",
       "obligations(status)",
@@ -392,16 +440,23 @@
         "in_progress"
       ]
     },
-    "is_over_due": "due_date < business_today and status not in submitted/done",
+    "is_overdue": "due_date < business_today and status not in submitted/done",
     "is_due_soon": "business_today <= due_date <= business_today + due_soon_window_days and status not in submitted/done",
     "document_gate": "target_status == submitted and requires_document == true requires attached document metadata",
     "available_transitions": "Start from status transition map, then exclude submitted when document_gate would block it and include submitBlockedReason DOCUMENT_REQUIRED.",
+    "creation_defaults": "All obligations are created with status pending and version 1; create requests must not accept status.",
+    "status_mutation_boundary": "Workflow status can only change through PATCH /api/obligations/{obligationId}/status.",
+    "generic_update_status_rule": "Generic obligation update must reject forbidden or unknown status fields instead of silently ignoring them.",
+    "mutation_version_rule": "Any mutation that changes an obligation requires expectedVersion and increments version, including generic update, status change, and document metadata attach/delete when the effective state changes.",
+    "requires_document_update_invariant": "If an obligation is submitted or done and an update would make requires_document true, attached document metadata must already exist or the update is rejected.",
+    "atomic_optimistic_locking": "Freshness must be enforced at the database write boundary with a conditional update by id and expectedVersion, or an equivalent transaction-safe approach, not only by read-compare-update in memory.",
     "clock": "Inject a Clock protocol in application/domain tests; production implementation returns current UTC date or configured business date provider."
   },
   "configuration": {
-    "DATABASE_URL": {
+    "SUPABASE_DATABASE_URL": {
       "required": true,
-      "example": "postgresql+asyncpg://lazo:lazo@localhost:5432/lazo"
+      "example": "postgresql+asyncpg://postgres:[password]@[host]:5432/postgres",
+      "description": "Supabase hosted PostgreSQL connection string. Real credentials must never be committed."
     },
     "DUE_SOON_WINDOW_DAYS": {
       "required": false,
@@ -410,7 +465,7 @@
     },
     "PII_ENCRYPTION_KEY": {
       "required": true,
-      "description": "Fernet-compatible key for encrypting companyTaxId at rest."
+      "description": "Fernet-compatible key for encrypting companyTaxId at rest. Include a placeholder in .env.example, use a deterministic test key in tests, and document how to generate a valid local key."
     },
     "APP_ENV": {
       "required": false,
@@ -430,7 +485,7 @@
     {
       "name": "pydantic-settings",
       "purpose": "Environment-driven app settings.",
-      "rationale": "Keeps DUE_SOON_WINDOW_DAYS and PII_ENCRYPTION_KEY explicit and testable."
+      "rationale": "Keeps SUPABASE_DATABASE_URL, DUE_SOON_WINDOW_DAYS, and PII_ENCRYPTION_KEY explicit and testable."
     },
     {
       "name": "sqlalchemy[asyncio]",
@@ -492,7 +547,11 @@
     },
     {
       "case": "Concurrent status change",
-      "handling": "Application service checks expectedVersion in the same transaction as update and audit insert. Stale versions map to 409 OBLIGATION_VERSION_CONFLICT."
+      "handling": "Repository enforces expectedVersion with an atomic conditional write in the same transaction as update and audit insert. Stale versions map to 409 OBLIGATION_VERSION_CONFLICT and create no audit."
+    },
+    {
+      "case": "Stale generic update or document metadata mutation",
+      "handling": "Repository enforces expectedVersion at the database write boundary, returns 409 on stale writes, and does not mutate the obligation."
     },
     {
       "case": "Audit insert fails",
@@ -507,12 +566,36 @@
       "handling": "Startup fails outside explicitly documented local test overrides."
     },
     {
+      "case": "Tax id contains separators or spaces",
+      "handling": "Security helper removes separators/spaces, extracts the last four alphanumeric characters for company_tax_id_last4, stores that value separately for masking, and encrypts the full received value if encryption is in scope. Example: 12-3456789 -> 6789."
+    },
+    {
       "case": "Due date equals today",
       "handling": "Not overdue; due soon if status is active and due soon window is >= 0."
     },
     {
       "case": "Due soon window is zero",
       "handling": "Only obligations due today can be due soon."
+    },
+    {
+      "case": "Create request includes status",
+      "handling": "Request is rejected. Status is always created as pending and must only change through the dedicated status endpoint."
+    },
+    {
+      "case": "Generic update includes status",
+      "handling": "Request is rejected as forbidden or unknown field; do not silently ignore status."
+    },
+    {
+      "case": "Updating requiresDocument creates invalid submitted/done state",
+      "handling": "Reject the update if it would make requiresDocument true for a submitted or done obligation without attached document metadata."
+    },
+    {
+      "case": "Document metadata lacks storageKey",
+      "handling": "Generate mock storage key using mock://obligations/{obligationId}/{fileName}. Do not implement real binary upload."
+    },
+    {
+      "case": "Document metadata is deleted after status audit exists",
+      "handling": "Delete only document metadata and increment obligation version; preserve all status audit events."
     }
   ],
   "testing_strategy": {
@@ -521,29 +604,39 @@
       "Invalid transition matrix rejects all other transitions.",
       "Document-gated submission blocks submitted when requires_document is true and has_document is false.",
       "Document-gated submission allows submitted when has_document is true.",
-      "is_over_due true for active obligations before business_today.",
-      "is_over_due false for submitted/done obligations.",
+      "is_overdue true for active obligations before business_today.",
+      "is_overdue false for submitted/done obligations.",
       "is_due_soon true for active obligations between business_today and configured window inclusive.",
       "is_due_soon false for overdue obligations.",
-      "is_due_soon false for submitted/done obligations."
+      "is_due_soon false for submitted/done obligations.",
+      "requiresDocument update invariant rejects submitted/done obligations without document metadata."
     ],
     "application_tests": [
       "Status change increments version and creates audit in one successful operation.",
       "Invalid status change does not mutate status, version, or audit.",
       "Document-required failure does not mutate status, version, or audit.",
-      "Version conflict rejects stale expectedVersion."
+      "Version conflict rejects stale expectedVersion.",
+      "Atomic optimistic locking rejects stale status changes without creating audit.",
+      "Generic update requires expectedVersion and increments version.",
+      "Document metadata attach/delete requires expectedVersion and increments version when effective state changes.",
+      "Document deletion does not delete status audit history.",
+      "Successful status change creates exactly one audit event."
     ],
     "api_tests": [
       "Create and read obligation returns camelCase contract with masked companyTaxId only.",
       "GET detail returns audit history after status change.",
-      "POST status-changes returns 422 for invalid transition.",
-      "POST status-changes returns 409 for version conflict.",
-      "Validation errors use consistent ErrorResponse shape."
+      "PATCH /api/obligations/{obligationId}/status returns 422 for invalid transition.",
+      "PATCH /api/obligations/{obligationId}/status returns 409 for version conflict.",
+      "Validation errors use consistent ErrorResponse shape.",
+      "Create obligation cannot accept status.",
+      "Generic update cannot modify status and rejects forbidden or unknown status field.",
+      "Stale expectedVersion returns 409 for generic update and document metadata mutation."
     ],
     "security_tests": [
       "Read schemas do not contain companyTaxId.",
       "Audit events do not contain raw companyTaxId.",
-      "Masking returns only last four characters plus mask prefix."
+      "Masking normalizes separators/spaces and returns only the last four alphanumeric characters plus mask prefix.",
+      "Raw companyTaxId never appears in read responses, errors, or audit records."
     ],
     "quality_gates": [
       "ruff check",
@@ -556,6 +649,7 @@
       "ObligationCreateRequest",
       "ObligationDetailResponse",
       "PII encryption/masking",
+      "creation default status pending and version 1",
       "api create/read tests"
     ],
     "AC02": [
@@ -563,7 +657,7 @@
       "VALIDATION_ERROR mapper"
     ],
     "AC03": [
-      "domain date policy is_over_due",
+      "domain date policy is_overdue",
       "domain tests"
     ],
     "AC04": [
@@ -586,6 +680,8 @@
     ],
     "AC09": [
       "ChangeObligationStatus",
+      "PATCH /api/obligations/{obligationId}/status",
+      "atomic optimistic locking",
       "audit transaction"
     ],
     "AC10": [
@@ -608,6 +704,7 @@
     ],
     "AC15": [
       "optimistic locking in application service",
+      "conditional database write by id and expectedVersion",
       "OBLIGATION_VERSION_CONFLICT"
     ],
     "AC16": [
@@ -626,94 +723,250 @@
   "implementation_phases": [
     {
       "phase": "P1",
-      "goal": "Scaffold backend project and configuration.",
+      "goal": "Scaffold backend project under /backend.",
       "tasks": [
-        "Create pyproject, app package, settings, FastAPI app factory, health route, and test setup.",
-        "Add docker-compose for PostgreSQL and .env.example with safe placeholders."
+        "Create backend/pyproject.toml with FastAPI, Pydantic v2, pydantic-settings, SQLAlchemy asyncio, asyncpg, Alembic, cryptography, pytest, pytest-asyncio, httpx, and ruff.",
+        "Create backend/app package with api, application, domain, infrastructure/db, infrastructure/security, and config modules.",
+        "Create FastAPI app factory and /health route.",
+        "Create backend/tests structure and first health route test.",
+        "Create root-level .env.example with SUPABASE_DATABASE_URL, PII_ENCRYPTION_KEY, DUE_SOON_WINDOW_DAYS, APP_ENV, and LOG_LEVEL placeholders."
       ],
       "dependencies": [],
       "definition_of_done": [
-        "App imports cleanly.",
+        "Backend app imports cleanly from /backend.",
         "Health route test passes.",
-        "Settings validation is covered."
+        ".env.example contains no real secrets.",
+        "Repo structure remains compatible with future /frontend."
       ]
     },
     {
       "phase": "P2",
-      "goal": "Implement pure domain rules.",
+      "goal": "Implement environment/config and Supabase connection.",
       "tasks": [
-        "Create enums, domain entity/value objects, transition policy, date derivation policy, document gate, and domain exceptions.",
-        "Write behavior tests for transitions, document gate, is_over_due, and is_due_soon."
+        "Create settings loader for SUPABASE_DATABASE_URL, PII_ENCRYPTION_KEY, DUE_SOON_WINDOW_DAYS, APP_ENV, and LOG_LEVEL.",
+        "Validate DUE_SOON_WINDOW_DAYS as integer >= 0.",
+        "Validate PII_ENCRYPTION_KEY is present and document how to generate a valid local Fernet key.",
+        "Create async SQLAlchemy engine/session factory using SUPABASE_DATABASE_URL.",
+        "Add settings tests for missing required values, invalid due-soon window, and deterministic test key override."
       ],
       "dependencies": [
         "P1"
       ],
       "definition_of_done": [
-        "Domain tests pass without database or FastAPI."
+        "Settings tests pass.",
+        "No Supabase credentials are hardcoded.",
+        "Database config reads only from environment."
       ]
     },
     {
       "phase": "P3",
-      "goal": "Implement persistence and migrations.",
+      "goal": "Implement pure domain model and rules.",
       "tasks": [
-        "Create SQLAlchemy models, Alembic migration, repositories, and transaction helpers.",
-        "Store company tax id encrypted with last4 available for masking."
+        "Create obligation type enum and ObligationStatus enum.",
+        "Create domain entity/value objects for obligation, document metadata presence, and audit event intent.",
+        "Create transition policy for pending, in_progress, submitted, and done.",
+        "Create document-gated submission policy.",
+        "Create date derivation policy for is_overdue and is_due_soon using injected business date and due_soon_window_days.",
+        "Create availableTransitions and submitBlockedReason derivation.",
+        "Create requiresDocument update invariant for submitted/done obligations.",
+        "Create domain exceptions for invalid transition, document required, version conflict, not found, and invalid invariant.",
+        "Write domain tests for valid transition, invalid transition, document-gated rejected, document-gated allowed, overdue, due soon, and requiresDocument update invariant."
       ],
       "dependencies": [
         "P1",
         "P2"
       ],
       "definition_of_done": [
-        "Migration creates expected tables and indexes.",
-        "Repository tests can persist and read obligations, documents, and audit events."
+        "Domain tests pass without FastAPI or database.",
+        "Domain uses is_overdue internally.",
+        "Domain contains no SQLAlchemy or Pydantic schema dependencies."
       ]
     },
     {
       "phase": "P4",
-      "goal": "Implement application use cases.",
+      "goal": "Implement persistence models, migrations, and repositories.",
       "tasks": [
-        "Create CRUD use cases, document metadata use cases, read presenters, and status change orchestration with optimistic locking and audit transaction."
+        "Create SQLAlchemy models for obligations, obligation_documents, and obligation_status_audit.",
+        "Create Alembic setup under /backend and initial migration.",
+        "Add indexes for due_date, status, and audit lookup by obligation_id and changed_at.",
+        "Implement repository methods for create, list, detail, hard delete, generic update, document attach/delete, and status change.",
+        "Implement atomic optimistic locking at write boundary for generic update, status change, and document metadata mutations using id plus expectedVersion or equivalent transaction-safe approach.",
+        "Ensure status change writes status, increments version, and inserts exactly one audit event in the same transaction.",
+        "Ensure stale writes return version conflict and create no audit.",
+        "Ensure document metadata delete/replace does not delete status audit history.",
+        "Ensure obligation hard delete removes the obligation from normal reads/lists and document/audit cascade behavior is explicit."
       ],
       "dependencies": [
         "P2",
         "P3"
       ],
       "definition_of_done": [
-        "Application tests prove success, invalid transition, document block, and version conflict behavior."
+        "Migration creates expected tables and indexes.",
+        "Repository tests prove create/read/update/delete, document metadata persistence, audit persistence, atomic version conflict, and document deletion preserving status audit.",
+        "No raw companyTaxId is stored in audit metadata."
       ]
     },
     {
       "phase": "P5",
-      "goal": "Expose API contract.",
+      "goal": "Implement application use cases.",
       "tasks": [
-        "Create Pydantic request/response schemas with camelCase aliases.",
-        "Create obligation routes and error handlers.",
-        "Ensure OpenAPI includes typed contracts."
+        "Create CreateObligation use case that always sets status pending and version 1.",
+        "Create UpdateObligation use case that requires expectedVersion, rejects status changes, increments version, and enforces requiresDocument invariant.",
+        "Create DeleteObligation use case for first-scope hard delete.",
+        "Create AttachObligationDocumentMetadata use case that requires expectedVersion, generates mock storageKey when omitted, and increments version.",
+        "Create DeleteObligationDocumentMetadata use case that requires expectedVersion, increments version, and preserves status audit history.",
+        "Create ChangeObligationStatus use case for PATCH /status with transition validation, document gate, atomic optimistic locking, version increment, and audit creation.",
+        "Create ListObligations and GetObligationDetail read use cases with masked tax id, isOverdue, isDueSoon, availableTransitions, submitBlockedReason, document metadata, and audit history.",
+        "Create PII helper integration for encrypting full companyTaxId and storing normalized last4."
       ],
       "dependencies": [
         "P4"
       ],
       "definition_of_done": [
-        "API tests pass for create/read/status-change/error cases.",
-        "Raw companyTaxId is absent from read responses."
+        "Application tests prove valid status transition, invalid transition, document-gated rejection, document-gated allowed with metadata, stale expectedVersion 409, stale conflict creates no audit, and successful status change creates exactly one audit.",
+        "Generic updates and document metadata mutations require expectedVersion and increment version."
       ]
     },
     {
       "phase": "P6",
-      "goal": "Add docs and verification polish.",
+      "goal": "Implement PII masking/encryption behavior.",
       "tasks": [
-        "Document backend setup, env vars, API routes, domain decisions, and test commands.",
-        "Run final quality gates."
+        "Create tax id normalization helper that removes separators/spaces and extracts the last four alphanumeric characters.",
+        "Encrypt full received companyTaxId using PII_ENCRYPTION_KEY before persistence.",
+        "Store company_tax_id_last4 separately for masking.",
+        "Expose only companyTaxIdMasked in read responses.",
+        "Ensure raw companyTaxId is not logged, returned in errors, included in audit events, or exposed by read schemas.",
+        "Write tests for 12-3456789 -> 6789 masking behavior and raw PII absence."
       ],
       "dependencies": [
+        "P2",
+        "P4",
         "P5"
       ],
       "definition_of_done": [
-        "README backend section is usable.",
+        "Security tests pass.",
+        "Read response schemas do not include companyTaxId.",
+        "Audit payloads contain no raw PII."
+      ]
+    },
+    {
+      "phase": "P7",
+      "goal": "Expose API schemas and routes.",
+      "tasks": [
+        "Create Pydantic request/response schemas with camelCase aliases and forbidden unknown fields where needed.",
+        "Create POST /api/obligations route with create schema that rejects status and version.",
+        "Create GET /api/obligations and GET /api/obligations/{obligationId} routes.",
+        "Create PATCH /api/obligations/{obligationId} route that rejects status and requires expectedVersion.",
+        "Create DELETE /api/obligations/{obligationId} route.",
+        "Create PATCH /api/obligations/{obligationId}/status route with StatusChangeRequest.",
+        "Create PUT and DELETE /api/obligations/{obligationId}/document routes requiring expectedVersion.",
+        "Create centralized error handlers for OBLIGATION_NOT_FOUND, INVALID_STATUS_TRANSITION, DOCUMENT_REQUIRED_FOR_SUBMISSION, OBLIGATION_VERSION_CONFLICT, VALIDATION_ERROR, and sanitized INTERNAL_SERVER_ERROR.",
+        "Ensure OpenAPI includes typed contracts for all public routes."
+      ],
+      "dependencies": [
+        "P5",
+        "P6"
+      ],
+      "definition_of_done": [
+        "API tests pass for create/read/update/document/status/error flows.",
+        "PATCH /status is the only route that can change workflow status.",
+        "Generic update rejects forbidden status field."
+      ]
+    },
+    {
+      "phase": "P8",
+      "goal": "Complete backend test coverage and README instructions.",
+      "tasks": [
+        "Add or finalize tests for valid status transition.",
+        "Add or finalize tests for invalid status transition.",
+        "Add or finalize tests for document-gated submission rejected.",
+        "Add or finalize tests for document-gated submission allowed when document metadata exists.",
+        "Add or finalize tests for overdue calculation.",
+        "Add or finalize tests for due soon calculation.",
+        "Add or finalize tests for raw companyTaxId never appearing in read response.",
+        "Add or finalize tests for generic update cannot modify status.",
+        "Add or finalize tests for stale expectedVersion returns 409.",
+        "Add or finalize tests for stale expectedVersion does not create audit.",
+        "Add or finalize tests for document deletion does not delete status audit history.",
+        "Add or finalize tests for successful status change creates exactly one audit event.",
+        "Document backend setup, Supabase env vars, generating PII_ENCRYPTION_KEY, running migrations, running tests, and API route overview.",
+        "Run ruff check, ruff format --check, and pytest."
+      ],
+      "dependencies": [
+        "P7"
+      ],
+      "definition_of_done": [
+        "README backend section is usable from a fresh clone.",
+        "All listed behavior tests exist.",
         "ruff and pytest pass."
       ]
     }
   ],
+  "implementation_task_groups": {
+    "note": "These are generated implementation tasks inside the technical spec only. The standalone todos.json gate should be created after this technical spec is approved.",
+    "groups": [
+      {
+        "group": "1. backend project scaffold under /backend",
+        "tasks": [
+          "Create /backend package, pyproject, app factory, health route, tests folder, and ruff/pytest config."
+        ]
+      },
+      {
+        "group": "2. environment/config/Supabase connection",
+        "tasks": [
+          "Create .env.example placeholders, settings validation, Supabase/Postgres async engine, session dependency, and key generation docs."
+        ]
+      },
+      {
+        "group": "3. domain model and rules",
+        "tasks": [
+          "Implement statuses, transition policy, document gate, date-derived flags, availableTransitions, submitBlockedReason, and requiresDocument invariant."
+        ]
+      },
+      {
+        "group": "4. persistence models/repositories",
+        "tasks": [
+          "Implement SQLAlchemy models, Alembic migration, repositories, atomic optimistic locking, version increments, and audit persistence."
+        ]
+      },
+      {
+        "group": "5. API schemas and routes",
+        "tasks": [
+          "Implement Pydantic schemas, camelCase responses, route handlers, forbidden status validation, and consistent error mapping."
+        ]
+      },
+      {
+        "group": "6. status change use case with transaction, optimistic locking, and audit",
+        "tasks": [
+          "Implement PATCH /api/obligations/{obligationId}/status through use case only, with atomic conditional write and exactly one audit event on success."
+        ]
+      },
+      {
+        "group": "7. PII masking/encryption",
+        "tasks": [
+          "Normalize tax id, store last4, encrypt full value, mask reads, and prevent raw PII in responses/errors/logs/audit."
+        ]
+      },
+      {
+        "group": "8. document metadata behavior",
+        "tasks": [
+          "Implement attach/delete metadata with expectedVersion, mock storageKey generation, version increment, and audit-history independence."
+        ]
+      },
+      {
+        "group": "9. tests",
+        "tasks": [
+          "Add domain, application, API, repository, and security tests for all expected behaviors from this spec."
+        ]
+      },
+      {
+        "group": "10. README/backend run instructions",
+        "tasks": [
+          "Document setup, Supabase connection, env vars, encryption key generation, migrations, tests, and API contract."
+        ]
+      }
+    ]
+  },
   "approval_gate": {
     "next_step_after_approval": "Create specs/features/backend-obligations/todos.json with executable tasks, dependencies, and parallelization batches.",
     "must_not_do_before_approval": [
