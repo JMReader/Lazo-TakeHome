@@ -51,6 +51,30 @@ python -m venv .venv
 .venv\Scripts\python.exe -m uvicorn app.main:create_app --factory --reload
 ```
 
+### API Documentation
+
+When the backend is running, FastAPI exposes the API contract at:
+
+```txt
+http://127.0.0.1:8000/docs
+http://127.0.0.1:8000/redoc
+http://127.0.0.1:8000/openapi.json
+```
+
+If port `8000` is busy, use the port passed to Uvicorn. In this local setup the
+backend was verified on:
+
+```txt
+http://127.0.0.1:8001/docs
+http://127.0.0.1:8001/openapi.json
+```
+
+A generated OpenAPI snapshot is also versioned at:
+
+```txt
+backend/docs/openapi.json
+```
+
 ### Migrations
 
 ```bash
