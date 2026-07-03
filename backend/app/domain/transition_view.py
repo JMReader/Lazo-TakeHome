@@ -16,6 +16,7 @@ def transition_view(
     requires_document: bool,
     has_document: bool,
 ) -> TransitionView:
+    """Expose the transitions currently actionable by a client."""
     transitions = list(ALLOWED_TRANSITIONS[status])
     blocked_reason = None
     if ObligationStatus.SUBMITTED in transitions and requires_document and not has_document:

@@ -8,6 +8,7 @@ def validate_requires_document_update(
     next_requires_document: bool,
     has_document: bool,
 ) -> None:
+    """Preserve document invariants when requirements change after submission."""
     if status in {ObligationStatus.SUBMITTED, ObligationStatus.DONE}:
         if next_requires_document and not has_document:
             raise InvalidObligationInvariant(

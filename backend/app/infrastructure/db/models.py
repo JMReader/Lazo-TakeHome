@@ -6,10 +6,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 def new_id() -> str:
+    """Generate string UUID primary keys for persisted rows."""
     return str(uuid4())
 
 
 def now_utc() -> datetime:
+    """Provide timezone-aware UTC timestamps for model defaults."""
     return datetime.now(UTC)
 
 

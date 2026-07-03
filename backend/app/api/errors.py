@@ -21,10 +21,12 @@ STATUS_BY_ERROR = {
 
 
 def error_payload(code: str, message: str, details: dict | None = None) -> dict:
+    """Build the normalized API error payload."""
     return {"code": code, "message": message, "details": details or {}}
 
 
 async def domain_error_handler(_request: Request, exc: DomainError) -> JSONResponse:
+    """Map domain exceptions to stable HTTP error responses."""
     status_code = STATUS_BY_ERROR.get(type(exc), 422)
     return JSONResponse(
         status_code=status_code,
@@ -36,6 +38,7 @@ async def validation_error_handler(
     _request: Request,
     exc: RequestValidationError,
 ) -> JSONResponse:
+    """Map FastAPI validation failures to the normalized error contract."""
     return JSONResponse(
         status_code=422,
         content=error_payload(
@@ -45,5 +48,6 @@ async def validation_error_handler(
 
 
 def install_error_handlers(app) -> None:
+    """Register API exception handlers on a FastAPI app."""
     app.add_exception_handler(DomainError, domain_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)

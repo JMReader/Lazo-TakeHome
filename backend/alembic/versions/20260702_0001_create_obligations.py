@@ -18,6 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """Create the obligations, document metadata, and audit tables."""
     op.create_table(
         "obligations",
         sa.Column("id", sa.String(length=36), nullable=False),
@@ -80,6 +81,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Drop the obligations schema created by this migration."""
     op.drop_index("ix_obligation_status_audit_obligation_id", table_name="obligation_status_audit")
     op.drop_table("obligation_status_audit")
     op.drop_index("ix_obligation_documents_obligation_id", table_name="obligation_documents")

@@ -10,6 +10,7 @@ ALLOWED_TRANSITIONS: dict[ObligationStatus, list[ObligationStatus]] = {
 
 
 def validate_transition(current_status: ObligationStatus, target_status: ObligationStatus) -> None:
+    """Ensure a requested status change follows the allowed workflow."""
     if target_status not in ALLOWED_TRANSITIONS[current_status]:
         raise InvalidStatusTransition(
             f"Cannot transition obligation from {current_status} to {target_status}."
@@ -22,5 +23,6 @@ def validate_document_gate(
     requires_document: bool,
     has_document: bool,
 ) -> None:
+    """Block submission when the obligation requires missing document metadata."""
     if target_status == ObligationStatus.SUBMITTED and requires_document and not has_document:
         raise DocumentRequiredForSubmission("Document metadata is required before submission.")

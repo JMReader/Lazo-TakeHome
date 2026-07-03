@@ -15,6 +15,7 @@ target_metadata = Base.metadata
 
 
 def database_url() -> str:
+    """Return the synchronous database URL expected by Alembic."""
     return (
         Settings()
         .supabase_database_url.unicode_string()
@@ -27,6 +28,7 @@ def database_url() -> str:
 
 
 def run_migrations_offline() -> None:
+    """Configure Alembic to render migrations without a live connection."""
     context.configure(
         url=database_url(),
         target_metadata=target_metadata,
@@ -39,6 +41,7 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    """Run Alembic migrations against the configured database."""
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = database_url()
     connectable = engine_from_config(

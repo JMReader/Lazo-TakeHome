@@ -7,6 +7,7 @@ from app.domain.obligations import ObligationStatus, ObligationType
 
 
 def to_camel(value: str) -> str:
+    """Convert snake_case field names into camelCase API aliases."""
     first, *rest = value.split("_")
     return first + "".join(part.capitalize() for part in rest)
 

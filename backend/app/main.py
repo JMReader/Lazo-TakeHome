@@ -20,6 +20,7 @@ def create_app(
     due_soon_window_days: int | None = None,
     business_today: date | None = None,
 ) -> FastAPI:
+    """Create and configure the FastAPI application instance."""
     if database_url is None or pii_encryption_key is None:
         settings = Settings()
         database_url = database_url or settings.supabase_database_url.unicode_string()
@@ -30,6 +31,7 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        """Initialize application resources before serving requests."""
         await create_schema(session_factory)
         yield
 
@@ -41,6 +43,7 @@ def create_app(
 
     @app.get("/health")
     async def health() -> dict[str, str]:
+        """Report whether the API process is reachable."""
         return {"status": "ok"}
 
     app.include_router(obligations_router)

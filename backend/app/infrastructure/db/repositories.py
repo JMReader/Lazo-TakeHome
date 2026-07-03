@@ -16,15 +16,18 @@ from app.infrastructure.db.models import (
 
 class ObligationRepository:
     def __init__(self, session: AsyncSession) -> None:
+        """Store obligation data through an async SQLAlchemy session."""
         self._session = session
 
     async def create(self, data: dict[str, Any]) -> ObligationModel:
+        """Persist a new pending obligation."""
         model = ObligationModel(**data, status=ObligationStatus.PENDING.value, version=1)
         self._session.add(model)
         await self._session.flush()
         return await self.get(model.id)
 
     async def list(self) -> list[ObligationModel]:
+        """Load obligations ordered for list views."""
         result = await self._session.execute(
             select(ObligationModel)
             .options(
@@ -36,6 +39,7 @@ class ObligationRepository:
         return list(result.scalars())
 
     async def get(self, obligation_id: str) -> ObligationModel:
+        """Load one obligation with related document and audit state."""
         result = await self._session.execute(
             select(ObligationModel)
             .where(ObligationModel.id == obligation_id)
@@ -51,6 +55,7 @@ class ObligationRepository:
         return model
 
     async def delete(self, obligation_id: str) -> None:
+        """Remove an obligation and cascade owned rows."""
         model = await self.get(obligation_id)
         await self._session.delete(model)
         await self._session.flush()
@@ -62,6 +67,7 @@ class ObligationRepository:
         expected_version: int,
         values: dict[str, Any],
     ) -> ObligationModel:
+        """Apply field updates only when the expected version matches."""
         await self._conditional_bump(
             obligation_id=obligation_id,
             expected_version=expected_version,
@@ -79,6 +85,7 @@ class ObligationRepository:
         size_bytes: int,
         storage_key: str,
     ) -> ObligationModel:
+        """Create or replace document metadata under optimistic locking."""
         await self._conditional_bump(
             obligation_id=obligation_id,
             expected_version=expected_version,
@@ -107,6 +114,7 @@ class ObligationRepository:
     async def delete_document(
         self, *, obligation_id: str, expected_version: int
     ) -> ObligationModel:
+        """Delete document metadata under optimistic locking."""
         await self._conditional_bump(
             obligation_id=obligation_id,
             expected_version=expected_version,
@@ -126,6 +134,7 @@ class ObligationRepository:
         target_status: ObligationStatus,
         reason: str | None,
     ) -> ObligationModel:
+        """Persist a status change and its audit record atomically."""
         current = await self.get(obligation_id)
         previous_status = current.status
         await self._conditional_bump(
@@ -152,6 +161,7 @@ class ObligationRepository:
         expected_version: int,
         values: dict[str, Any],
     ) -> None:
+        """Increment the version only when the current row matches expectations."""
         statement = (
             update(ObligationModel)
             .where(ObligationModel.id == obligation_id, ObligationModel.version == expected_version)

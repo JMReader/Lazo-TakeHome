@@ -18,6 +18,7 @@ def present_obligation_list_item(
     business_today: date,
     due_soon_window_days: int,
 ) -> ObligationListItemResponse:
+    """Build the compact public representation for list views."""
     return ObligationListItemResponse.model_validate(
         _obligation_summary_payload(
             model,
@@ -33,6 +34,7 @@ def present_obligation_detail(
     business_today: date,
     due_soon_window_days: int,
 ) -> ObligationDetailItemResponse:
+    """Build the full public representation for detail and mutation responses."""
     payload = _obligation_summary_payload(
         model,
         business_today=business_today,
@@ -49,6 +51,7 @@ def _obligation_summary_payload(
     business_today: date,
     due_soon_window_days: int,
 ) -> dict:
+    """Collect fields shared by compact and full obligation responses."""
     status = ObligationStatus(model.status)
     flags = calculate_due_flags(
         due_date=model.due_date,
@@ -81,6 +84,7 @@ def _obligation_summary_payload(
 
 
 def _document_payload(model: ObligationModel) -> DocumentResponse | None:
+    """Translate stored document metadata into its API response shape."""
     if model.document is None:
         return None
     return DocumentResponse.model_validate(
@@ -97,6 +101,7 @@ def _document_payload(model: ObligationModel) -> DocumentResponse | None:
 
 
 def _audit_event_payload(event: ObligationStatusAuditModel) -> AuditEventResponse:
+    """Translate a status audit row into its API response shape."""
     return AuditEventResponse.model_validate(
         {
             "id": event.id,
