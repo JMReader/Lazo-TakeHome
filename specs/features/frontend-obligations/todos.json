@@ -43,13 +43,12 @@
       "outputs": [
         "components.json",
         "Required shadcn/ui source components",
-        "cn utility",
-        "Base app layout shell"
+        "cn utility"
       ],
       "exit_criteria": [
-        "Only required shadcn components are added.",
+        "Install only shadcn primitives used by implemented screens and flows: Button, Input, Select, Table, Card, Badge, Dialog or AlertDialog, Field/Form primitives, Alert, Empty, Skeleton, DropdownMenu only if row actions require it, and Separator only where visually needed.",
         "shadcn info works from frontend/.",
-        "No raw custom replacements are created for shadcn primitives that already exist.",
+        "No unused shadcn primitives, placeholder components, or raw custom replacements for existing shadcn primitives are introduced.",
         "Font and Tailwind/shadcn setup avoids circular theme font references."
       ]
     },
@@ -140,7 +139,9 @@
       "exit_criteria": [
         "/ redirects to default locale.",
         "/en and /es routes are supported.",
-        "App shell includes product navigation, locale switcher, theme toggle placeholder or implementation, and New obligation action.",
+        "App shell includes only navigation/actions needed for dashboard, create, detail, and edit flows.",
+        "Locale routing is supported; a locale switcher is included only if it is fully wired to /en and /es routes.",
+        "No placeholder controls, dead buttons, decorative actions, or unused navigation items are introduced.",
         "Route states use localized copy."
       ]
     },
@@ -157,15 +158,14 @@
       "outputs": [
         "Dashboard filter state model",
         "KPI derivation helpers",
-        "Due-date sorting helper",
-        "Filter tests"
+        "Due-date sorting helper"
       ],
       "exit_criteria": [
-        "KPIs use backend-provided status, isOverdue, and isDueSoon.",
+        "KPIs include total count, counts by backend status, overdue count from backend isOverdue, and due-soon count from backend isDueSoon.",
         "No frontend date arithmetic decides compliance risk.",
         "Status/type/due filters use constrained values.",
         "Title/owner query uses free text.",
-        "Unit tests cover KPI and filter behavior."
+        "KPI and filter behavior is ready for the consolidated test task."
       ]
     },
     {
@@ -187,9 +187,11 @@
       ],
       "exit_criteria": [
         "Dashboard satisfies AC01 through AC05.",
+        "Dashboard renders total, by-status, overdue, and due-soon KPIs.",
         "Rows are ordered by dueDate.",
         "Overdue and due-soon visual treatment uses backend flags and semantic tokens.",
         "Empty state distinguishes no obligations from no filter matches.",
+        "Dashboard reflects API loading and API error states with localized copy.",
         "Dashboard renders correctly in en and es."
       ]
     },
@@ -213,10 +215,12 @@
       ],
       "exit_criteria": [
         "Detail satisfies AC06 through AC10 and AC21.",
+        "All backend display fields required by the challenge are visible: title, description, type, status, dueDate, owner, requiresDocument, hasDocument, companyTaxIdMasked, document metadata when present, availableTransitions, submitBlockedReason, version, and auditHistory.",
         "companyTaxIdMasked is displayed and raw companyTaxId is never displayed.",
         "Audit history is read-only.",
         "Available transitions are displayed from backend data only.",
-        "submitBlockedReason is localized and actionable."
+        "When submitBlockedReason indicates missing document, the submitted action is shown disabled/blocked with a localized backend-driven explanation.",
+        "Detail page reflects API loading, not-found, and API error states with localized copy."
       ]
     },
     {
@@ -241,6 +245,7 @@
         "Create form does not expose status, version, or expectedVersion.",
         "Basic UX validation exists for required fields and obvious invalid values.",
         "Backend VALIDATION_ERROR is shown clearly.",
+        "Create submission shows pending/loading state and reflects API errors with localized copy.",
         "Successful create navigates to or renders returned detail using masked tax id."
       ]
     },
@@ -265,6 +270,7 @@
         "Edit satisfies AC14 and AC15.",
         "Edit form includes expectedVersion but does not expose workflow status.",
         "Backend validation and conflict errors are shown clearly.",
+        "Edit submission shows pending/loading state and reflects API errors with localized copy.",
         "Successful edit refreshes returned obligation version."
       ]
     },
@@ -282,12 +288,13 @@
       "outputs": [
         "Status action component",
         "Status transition Server Action",
-        "Pending/error/conflict UI",
-        "Action tests"
+        "Pending/error/conflict UI"
       ],
       "exit_criteria": [
         "Status flow satisfies AC18 through AC20.",
         "Only backend availableTransitions are rendered as actions.",
+        "A submitted action is never enabled unless submitted is present in backend availableTransitions.",
+        "If backend returns submitBlockedReason for submitted, the UI renders submitted as blocked/disabled instead of inventing transition logic.",
         "expectedVersion is submitted.",
         "DOCUMENT_REQUIRED_FOR_SUBMISSION, INVALID_STATUS_TRANSITION, and OBLIGATION_VERSION_CONFLICT produce distinct user feedback.",
         "Duplicate submissions are prevented while pending."
@@ -315,6 +322,7 @@
         "sizeBytes must be positive.",
         "storageKey can be omitted.",
         "expectedVersion is submitted for attach/remove.",
+        "Attach/remove actions show pending state and reflect API errors with localized copy.",
         "Removal requires explicit confirmation."
       ]
     },
@@ -337,6 +345,7 @@
       "exit_criteria": [
         "Delete satisfies AC22.",
         "Delete requires explicit confirmation.",
+        "Delete action shows pending state and reflects API errors with localized copy.",
         "Successful delete returns user to a coherent dashboard state.",
         "Not-found delete recovery is clear."
       ]
@@ -366,7 +375,10 @@
         "Tests verify create/edit forms do not expose workflow status.",
         "Tests verify masked tax id display only.",
         "Tests verify availableTransitions drive status actions.",
+        "Tests verify submitted is blocked/disabled from backend submitBlockedReason when a required document is missing.",
         "Tests verify conflict feedback.",
+        "Tests verify API loading or error state is reflected in dashboard or detail UI.",
+        "Tests verify en/es labels for at least dashboard and status labels.",
         "At least one frontend flow test exists."
       ]
     },
@@ -391,7 +403,8 @@
         "TypeScript typecheck passes.",
         "ESLint passes.",
         "Frontend tests pass.",
-        "Browser smoke verifies dashboard, detail, create, edit, mutation, error, en/es, and light/dark states.",
+        "Browser smoke verifies the required surfaces only: dashboard, detail, create, edit, status mutation, API loading/error, en/es labels, and light/dark rendering from the approved theme.",
+        "Final UI contains no unused buttons, placeholder controls, decorative-only actions, or unimplemented menu items.",
         "No unrelated files are changed."
       ]
     }
