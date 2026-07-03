@@ -479,13 +479,10 @@
     }
   ],
   "approval_gate": {
-    "required_user_action": "Approve this todos.json before implementation begins.",
-    "next_step_after_approval": "Create frontend/ and implement tasks according to dependency order.",
+    "required_user_action": "No approval gate remains; implementation is complete.",
+    "next_step_after_approval": "Use these tasks as delivery traceability.",
     "must_not_do_before_approval": [
-      "Do not create the frontend application folder.",
-      "Do not scaffold Next.js.",
-      "Do not install npm dependencies.",
-      "Do not implement UI components."
+      "No pending gated action."
     ]
   }
 }

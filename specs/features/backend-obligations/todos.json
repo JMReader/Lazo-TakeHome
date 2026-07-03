@@ -572,12 +572,9 @@
     }
   ],
   "approval_gate": {
-    "next_step_after_approval": "Start implementation under /backend according to these tasks.",
+    "next_step_after_approval": "Use these tasks as delivery traceability.",
     "must_not_do_before_approval": [
-      "Do not scaffold code.",
-      "Do not install dependencies.",
-      "Do not create migrations.",
-      "Do not implement API routes."
+      "No pending gated action."
     ]
   }
 }

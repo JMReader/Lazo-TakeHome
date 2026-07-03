@@ -6,17 +6,18 @@
     "created_at": "2026-07-02",
     "approved_at": "2026-07-02",
     "source_inputs": [
-      "Copia de Prueba tecnica - Fullstack Engineer.md",
-      "E:/juan/all/Lazo/Decisions.md.md"
+      "README.md",
+      "backend/docs/openapi.json",
+      "backend/app/api/schemas.py"
     ]
   },
   "context_scan": {
-    "repository_state": "No application scaffold found yet. Workspace currently contains challenge and research documents only.",
-    "detected_stack": "No package.json, pyproject.toml, requirements file, app directory, src directory, api directory, db directory, or existing specs were present before this feature spec.",
+    "repository_state": "Backend and frontend are implemented in this repository with specs, tests, README instructions, and versioned API documentation.",
+    "detected_stack": "backend/ uses FastAPI, Pydantic v2, async SQLAlchemy, Alembic, pytest, and ruff. frontend/ uses Next.js App Router, React, TypeScript, Tailwind CSS, and Vitest.",
     "runtime_constraints": [
-      "Challenge requires a backend service for compliance obligations.",
-      "Challenge expects backend domain rules to be isolated from HTTP and persistence.",
-      "Challenge accepts PostgreSQL as recommended persistence and SQLite as acceptable fallback, but this functional spec does not choose implementation details."
+      "Backend domain rules are isolated from HTTP and persistence.",
+      "Production configuration targets Supabase/PostgreSQL through SUPABASE_DATABASE_URL.",
+      "Tests use in-memory SQLite through the app factory for deterministic behavior."
     ],
     "likely_affected_modules": [
       "Backend obligation domain behavior",
@@ -25,7 +26,7 @@
       "Backend audit history behavior",
       "Backend sensitive data handling"
     ],
-    "test_setup_available": "No test framework is configured yet."
+    "test_setup_available": "pytest, pytest-asyncio, httpx API tests, domain tests, security tests, and ruff are configured."
   },
   "scope": {
     "product_goal": "Provide the backend behavior needed to track company compliance obligations with reliable state transitions, document-gated submission, masked sensitive data, overdue and due-soon calculation, audit history, and concurrency-safe status changes.",
@@ -142,6 +143,11 @@
       "id": "BR04",
       "name": "Document-gated submission",
       "rule": "If an obligation requires a document and has no attached document metadata, it cannot transition to submitted."
+    },
+    {
+      "id": "BR04A",
+      "name": "Submitted required-document invariant",
+      "rule": "If an obligation is submitted or done and requires a document, document metadata cannot be removed while that requirement remains true."
     },
     {
       "id": "BR05",
@@ -307,6 +313,13 @@
       "then": "The response indicates that submission is blocked because a document is required."
     },
     {
+      "id": "AC13A",
+      "title": "Reject removing required document from submitted obligation",
+      "given": "An obligation is submitted or done, requires a document, and has attached document metadata.",
+      "when": "The client requests document metadata removal.",
+      "then": "The request is rejected with a consistent domain error and the document metadata remains attached."
+    },
+    {
       "id": "AC14",
       "title": "Expose available transitions on detail",
       "given": "An obligation exists in any valid status.",
@@ -351,24 +364,24 @@
   ],
   "open_questions": [
     {
-      "id": "Q01",
-      "question": "Should delete be hard delete for challenge simplicity or soft delete for auditability?",
-      "default_assumption_for_next_gate": "Use hard delete unless the technical spec chooses soft delete as a low-cost auditability improvement."
+      "id": "D01",
+      "question": "Delete behavior",
+      "default_assumption_for_next_gate": "Resolved: obligation delete is hard delete for challenge scope."
     },
     {
-      "id": "Q02",
-      "question": "Should document metadata be created through a dedicated document operation or embedded in obligation create/update for the first scope?",
-      "default_assumption_for_next_gate": "Prefer a small dedicated document metadata operation if it keeps the domain rule clearer."
+      "id": "D02",
+      "question": "Document metadata operation",
+      "default_assumption_for_next_gate": "Resolved: document metadata is managed through dedicated PUT/DELETE /document operations."
     },
     {
-      "id": "Q03",
-      "question": "Should dashboard KPIs be served by a dedicated summary endpoint or computed by the frontend from a list response in the first scope?",
-      "default_assumption_for_next_gate": "Keep first scope simple by allowing frontend computation from list data unless performance concerns appear."
+      "id": "D03",
+      "question": "Dashboard KPIs",
+      "default_assumption_for_next_gate": "Resolved: frontend computes KPIs from backend list items using backend-derived flags."
     },
     {
-      "id": "Q04",
-      "question": "What should the default due-soon window be?",
-      "default_assumption_for_next_gate": "Use 30 calendar days as a configurable default unless the user chooses a different window."
+      "id": "D04",
+      "question": "Default due-soon window",
+      "default_assumption_for_next_gate": "Resolved: DUE_SOON_WINDOW_DAYS defaults to 30."
     }
   ]
 }
