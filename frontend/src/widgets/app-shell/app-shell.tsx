@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
 import type { Locale } from "@/shared/i18n/config";
 import { getDictionary } from "@/shared/i18n/dictionaries";
+import { AppIcon } from "@/shared/ui/app-icon";
 import { Button } from "@/shared/ui/button";
 import { LocaleSwitch } from "@/widgets/app-shell/locale-switch";
 import { ThemeToggle } from "@/widgets/app-shell/theme-toggle";
@@ -19,9 +19,7 @@ export function AppShell({
       <header className="border-b bg-surface/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <Link href={`/${locale}`} className="flex min-w-0 items-center gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-md border bg-card text-accent">
-              <ShieldCheck />
-            </span>
+            <AppIcon className="size-9 shrink-0" />
             <span className="min-w-0">
               <span className="block truncate text-sm font-semibold">
                 {dictionary.app.title}
