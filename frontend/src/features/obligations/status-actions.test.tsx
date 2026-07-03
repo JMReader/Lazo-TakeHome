@@ -38,7 +38,12 @@ describe("StatusActions", () => {
     expect(
       screen.getByRole("button", { name: /Change status: In progress/ }),
     ).toBeInTheDocument();
-    expect(screen.getByText("This records a workflow change and updates the audit trail.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("list", { name: "Natural workflow order" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Workflow step 1 of 4: Pending"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Submitted")).toBeInTheDocument();
     expect(screen.getByText(/Submission blocked/)).toBeInTheDocument();
     expect(screen.getByText("Current status")).toBeInTheDocument();

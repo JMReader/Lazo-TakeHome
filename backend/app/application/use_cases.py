@@ -124,6 +124,12 @@ class ObligationService:
         expected_version: int,
     ) -> ObligationDetailResponse:
         """Remove document metadata and return the refreshed detail."""
+        current = await self._repo.get(obligation_id)
+        validate_requires_document_update(
+            status=ObligationStatus(current.status),
+            next_requires_document=current.requires_document,
+            has_document=False,
+        )
         model = await self._repo.delete_document(
             obligation_id=obligation_id,
             expected_version=expected_version,

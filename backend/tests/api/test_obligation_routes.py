@@ -120,6 +120,105 @@ async def test_status_change_requires_document_and_then_creates_audit_once():
             assert len(body["auditHistory"]) == 2
 
 
+async def test_delete_document_updates_detail_and_blocks_submission_again():
+    app = create_app(
+        database_url="sqlite+aiosqlite:///:memory:",
+        pii_encryption_key=Fernet.generate_key().decode(),
+        business_today=date(2026, 7, 2),
+    )
+
+    async with app.router.lifespan_context(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            created = (await client.post("/api/obligations", json=create_payload())).json()[
+                "obligation"
+            ]
+            started = (
+                await client.patch(
+                    f"/api/obligations/{created['id']}/status",
+                    json={"targetStatus": "in_progress", "expectedVersion": created["version"]},
+                )
+            ).json()["obligation"]
+            with_doc = (
+                await client.put(
+                    f"/api/obligations/{created['id']}/document",
+                    json={
+                        "fileName": "report.pdf",
+                        "contentType": "application/pdf",
+                        "sizeBytes": 123,
+                        "expectedVersion": started["version"],
+                    },
+                )
+            ).json()["obligation"]
+
+            removed = await client.delete(
+                f"/api/obligations/{created['id']}/document",
+                params={"expectedVersion": with_doc["version"]},
+            )
+
+            assert removed.status_code == 200
+            without_doc = removed.json()["obligation"]
+            assert without_doc["document"] is None
+            assert without_doc["hasDocument"] is False
+            assert without_doc["version"] == with_doc["version"] + 1
+            assert "submitted" not in without_doc["availableTransitions"]
+            assert without_doc["submitBlockedReason"] == "DOCUMENT_REQUIRED"
+
+            blocked = await client.patch(
+                f"/api/obligations/{created['id']}/status",
+                json={"targetStatus": "submitted", "expectedVersion": without_doc["version"]},
+            )
+            assert blocked.status_code == 422
+            assert blocked.json()["code"] == "DOCUMENT_REQUIRED_FOR_SUBMISSION"
+
+
+async def test_delete_document_rejects_submitted_required_document_invariant():
+    app = create_app(
+        database_url="sqlite+aiosqlite:///:memory:",
+        pii_encryption_key=Fernet.generate_key().decode(),
+        business_today=date(2026, 7, 2),
+    )
+
+    async with app.router.lifespan_context(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            created = (await client.post("/api/obligations", json=create_payload())).json()[
+                "obligation"
+            ]
+            started = (
+                await client.patch(
+                    f"/api/obligations/{created['id']}/status",
+                    json={"targetStatus": "in_progress", "expectedVersion": created["version"]},
+                )
+            ).json()["obligation"]
+            with_doc = (
+                await client.put(
+                    f"/api/obligations/{created['id']}/document",
+                    json={
+                        "fileName": "report.pdf",
+                        "contentType": "application/pdf",
+                        "sizeBytes": 123,
+                        "expectedVersion": started["version"],
+                    },
+                )
+            ).json()["obligation"]
+            submitted = (
+                await client.patch(
+                    f"/api/obligations/{created['id']}/status",
+                    json={"targetStatus": "submitted", "expectedVersion": with_doc["version"]},
+                )
+            ).json()["obligation"]
+
+            rejected = await client.delete(
+                f"/api/obligations/{created['id']}/document",
+                params={"expectedVersion": submitted["version"]},
+            )
+
+            assert rejected.status_code == 422
+            assert rejected.json()["code"] == "INVALID_OBLIGATION_INVARIANT"
+            detail = (await client.get(f"/api/obligations/{created['id']}")).json()["obligation"]
+            assert detail["document"] is not None
+            assert detail["status"] == "submitted"
+
+
 async def test_generic_update_rejects_status_and_stale_status_change_creates_no_audit():
     app = create_app(
         database_url="sqlite+aiosqlite:///:memory:",
