@@ -54,7 +54,9 @@ type Dictionary = {
     availableNow: string;
     unavailableStatus: string;
     changeStatus: string;
-    statusChangeHelp: string;
+    workflowOrder: string;
+    workflowStep: string;
+    of: string;
     selectNextStatus: string;
     selectedTransition: string;
     optionalReason: string;
@@ -163,7 +165,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       availableNow: "Available now",
       unavailableStatus: "Not available",
       changeStatus: "Change status",
-      statusChangeHelp: "This records a workflow change and updates the audit trail.",
+      workflowOrder: "Natural workflow order",
+      workflowStep: "Workflow step",
+      of: "of",
       selectNextStatus: "Select next status",
       selectedTransition: "Selected transition",
       optionalReason: "Optional reason",
@@ -230,6 +234,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       VALIDATION_ERROR: "Some fields need attention.",
       OBLIGATION_NOT_FOUND: "The obligation was not found.",
       INVALID_STATUS_TRANSITION: "That status transition is no longer available.",
+      INVALID_OBLIGATION_INVARIANT: "This change would leave the obligation in an invalid document state.",
       DOCUMENT_REQUIRED_FOR_SUBMISSION: "A document is required before submission.",
       OBLIGATION_VERSION_CONFLICT: "This obligation changed. Refresh before trying again.",
       INTERNAL_SERVER_ERROR: "The server could not complete the request.",
@@ -288,7 +293,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       availableNow: "Disponible ahora",
       unavailableStatus: "No disponible",
       changeStatus: "Cambiar estado",
-      statusChangeHelp: "Esto registra un cambio de workflow y actualiza el historial.",
+      workflowOrder: "Orden natural del workflow",
+      workflowStep: "Paso del workflow",
+      of: "de",
       selectNextStatus: "Seleccionar próximo estado",
       selectedTransition: "Transición seleccionada",
       optionalReason: "Motivo opcional",
@@ -355,6 +362,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       VALIDATION_ERROR: "Hay campos que requieren atención.",
       OBLIGATION_NOT_FOUND: "No se encontró la obligación.",
       INVALID_STATUS_TRANSITION: "Esa transición ya no está disponible.",
+      INVALID_OBLIGATION_INVARIANT: "Este cambio dejaría la obligación en un estado documental inválido.",
       DOCUMENT_REQUIRED_FOR_SUBMISSION: "Se requiere un documento antes de enviar.",
       OBLIGATION_VERSION_CONFLICT: "La obligación cambió. Actualizá antes de reintentar.",
       INTERNAL_SERVER_ERROR: "El servidor no pudo completar la solicitud.",

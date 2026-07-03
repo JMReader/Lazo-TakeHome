@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DocumentAttachForm } from "@/features/obligations/document-actions";
+import {
+  DocumentAttachForm,
+  RemoveDocumentButton,
+} from "@/features/obligations/document-actions";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
@@ -73,6 +76,30 @@ describe("DocumentAttachForm", () => {
     expect(screen.getByText("Replace document metadata?")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Replace document metadata" }));
+
+    expect(HTMLFormElement.prototype.requestSubmit).toHaveBeenCalled();
+  });
+});
+
+describe("RemoveDocumentButton", () => {
+  it("asks for confirmation and submits the expected version", () => {
+    HTMLFormElement.prototype.requestSubmit = vi.fn();
+    render(
+      <RemoveDocumentButton
+        locale="en"
+        obligationId="obl_1"
+        version={9}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove document" }));
+
+    expect(screen.getByText("This removes the document metadata from the obligation.")).toBeInTheDocument();
+    const expectedVersion = document.querySelector(
+      'input[name="expectedVersion"]',
+    );
+    expect(expectedVersion).toHaveValue("9");
+    fireEvent.click(screen.getAllByRole("button", { name: "Remove document" }).at(-1)!);
 
     expect(HTMLFormElement.prototype.requestSubmit).toHaveBeenCalled();
   });

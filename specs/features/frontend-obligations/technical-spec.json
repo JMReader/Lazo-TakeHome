@@ -11,7 +11,7 @@
     ]
   },
   "context": {
-    "repository_state": "Backend is implemented under backend/. No frontend scaffold exists yet.",
+    "repository_state": "Backend is implemented under backend/ and frontend is implemented under frontend/.",
     "feature_type": "frontend-heavy",
     "approved_functional_scope": [
       "Dashboard KPIs, filters, due-date ordered list, and risk highlighting.",
@@ -25,7 +25,7 @@
       "Consistent loading, empty, error, not-found, and conflict states."
     ],
     "constraints": [
-      "Create frontend code later under a new frontend/ folder, not during this spec gate.",
+      "Frontend code lives under frontend/.",
       "Use Next.js App Router with React and strict TypeScript.",
       "Use Server Components by default and Client Components only for real browser interactivity.",
       "Use Server Actions for in-app mutations where appropriate.",
@@ -51,7 +51,7 @@
       "routing_root": "frontend/src/app",
       "import_alias": "@/*",
       "reasoning": [
-        "Keeps the existing backend/ and future frontend/ clearly separated in the same repository.",
+        "Keeps backend/ and frontend/ clearly separated in the same repository.",
         "src/ keeps route files, feature modules, and shared code grouped under the frontend app.",
         "The alias avoids brittle relative imports once feature slices grow."
       ]
@@ -69,7 +69,7 @@
         "responsibility": "Page-level compositions such as dashboard KPI strip, dashboard filter bar, obligations table, detail summary, document panel, audit trail, and action panel.",
         "must_not_do": [
           "No direct HTTP fetch implementation.",
-          "No mutation payload construction beyond calling feature actions."
+        "No mutation payload construction beyond calling feature actions."
         ]
       },
       "src/features": {
@@ -143,7 +143,7 @@
     },
     "rendering_strategy": {
       "dashboard_page": {
-        "component_model": "Server Component route reads searchParams, fetches obligations from backend, derives UI-only KPI counts and filter results from backend-provided fields, and renders widgets.",
+      "component_model": "Server Component route reads searchParams, fetches obligations from backend, derives UI-only KPI counts and filter results from backend-provided fields, and renders widgets.",
         "client_boundaries": [
           "Filter controls that manage typed input or update URL search params.",
           "Row action menus if they require browser interaction."
@@ -153,7 +153,7 @@
       "detail_page": {
         "component_model": "Server Component fetches obligation detail and passes data to mostly server-rendered widgets.",
         "client_boundaries": [
-          "Status action controls with pending state.",
+        "Status action controls with pending state and a visual natural-order guide.",
           "Delete confirmation dialog.",
           "Document metadata dialogs or forms if used inline."
         ],
@@ -181,7 +181,7 @@
       "mutations": [
         "Client form or action control invokes a Server Action.",
         "Server Action validates basic form shape and calls shared API endpoint function.",
-        "Server Action sends expectedVersion for edit, status, document, and delete-related versioned operations where backend requires it.",
+        "Server Action sends expectedVersion for edit, status, document attach, and document delete operations where backend requires it.",
         "Server Action maps normalized backend errors into form/action state.",
         "On success, Server Action redirects or revalidates the relevant route so UI uses backend-returned or freshly fetched data."
       ],
@@ -438,8 +438,10 @@
           "expectedVersion"
         ],
         "notes": [
+          "Metadata is derived from a selected local file; binary content is not uploaded.",
           "storageKey may be omitted so backend can generate it.",
-          "sizeBytes must be positive."
+          "sizeBytes must be positive.",
+          "Remove document uses an explicit requestSubmit call from the confirmation dialog so the form submit is not lost when the dialog portal closes."
         ]
       }
     },
@@ -460,6 +462,7 @@
         "VALIDATION_ERROR",
         "OBLIGATION_NOT_FOUND",
         "INVALID_STATUS_TRANSITION",
+        "INVALID_OBLIGATION_INVARIANT",
         "DOCUMENT_REQUIRED_FOR_SUBMISSION",
         "OBLIGATION_VERSION_CONFLICT",
         "INTERNAL_SERVER_ERROR"
@@ -652,6 +655,10 @@
     {
       "case": "DOCUMENT_REQUIRED_FOR_SUBMISSION",
       "handling": "Show localized explanation and document metadata call to action."
+    },
+    {
+      "case": "INVALID_OBLIGATION_INVARIANT",
+      "handling": "Show a localized explanation when a mutation would leave an obligation in an invalid document state, such as removing required metadata from a submitted or done obligation."
     },
     {
       "case": "INVALID_STATUS_TRANSITION",
@@ -960,14 +967,10 @@
     ]
   },
   "approval_gate": {
-    "required_user_action": "Approve this technical spec before creating todos.json.",
-    "next_step_after_approval": "Create specs/features/frontend-obligations/todos.json with executable tasks, dependencies, outputs, exit criteria, and parallelization batches.",
+    "required_user_action": "No approval gate remains; implementation is complete and this spec is retained as aligned technical documentation.",
+    "next_step_after_approval": "Use this spec as reference for maintenance and presentation.",
     "must_not_do_before_approval": [
-      "Do not create the frontend application folder.",
-      "Do not scaffold Next.js.",
-      "Do not install npm dependencies.",
-      "Do not implement UI components.",
-      "Do not create todos.json."
+      "No pending gated action."
     ]
   }
 }

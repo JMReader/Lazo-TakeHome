@@ -38,16 +38,14 @@ class ObligationService:
         """Create an obligation with protected tax ID storage."""
         protected_tax_id = self._tax_id_protector.protect(request.company_tax_id)
         model = await self._repo.create(
-            {
-                "type": request.type.value,
-                "title": request.title,
-                "description": request.description,
-                "due_date": request.due_date,
-                "owner": request.owner,
-                "requires_document": request.requires_document,
-                "company_tax_id_encrypted": protected_tax_id.encrypted,
-                "company_tax_id_last4": protected_tax_id.last4,
-            }
+            type=request.type.value,
+            title=request.title,
+            description=request.description,
+            due_date=request.due_date,
+            owner=request.owner,
+            requires_document=request.requires_document,
+            company_tax_id_encrypted=protected_tax_id.encrypted,
+            company_tax_id_last4=protected_tax_id.last4,
         )
         return self._detail(model)
 
@@ -124,6 +122,12 @@ class ObligationService:
         expected_version: int,
     ) -> ObligationDetailResponse:
         """Remove document metadata and return the refreshed detail."""
+        current = await self._repo.get(obligation_id)
+        validate_requires_document_update(
+            status=ObligationStatus(current.status),
+            next_requires_document=current.requires_document,
+            has_document=False,
+        )
         model = await self._repo.delete_document(
             obligation_id=obligation_id,
             expected_version=expected_version,

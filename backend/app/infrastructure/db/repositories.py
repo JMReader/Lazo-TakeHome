@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import select, update
@@ -19,9 +19,31 @@ class ObligationRepository:
         """Store obligation data through an async SQLAlchemy session."""
         self._session = session
 
-    async def create(self, data: dict[str, Any]) -> ObligationModel:
+    async def create(
+        self,
+        *,
+        type: str,
+        title: str,
+        description: str,
+        due_date: date,
+        owner: str,
+        requires_document: bool,
+        company_tax_id_encrypted: str,
+        company_tax_id_last4: str,
+    ) -> ObligationModel:
         """Persist a new pending obligation."""
-        model = ObligationModel(**data, status=ObligationStatus.PENDING.value, version=1)
+        model = ObligationModel(
+            type=type,
+            title=title,
+            description=description,
+            due_date=due_date,
+            owner=owner,
+            requires_document=requires_document,
+            company_tax_id_encrypted=company_tax_id_encrypted,
+            company_tax_id_last4=company_tax_id_last4,
+            status=ObligationStatus.PENDING.value,
+            version=1,
+        )
         self._session.add(model)
         await self._session.flush()
         return await self.get(model.id)

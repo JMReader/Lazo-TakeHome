@@ -55,21 +55,36 @@ export function StatusActions({
         </Alert>
       ) : null}
 
-      <ol className="grid gap-3" aria-label={dictionary.detail.transitions}>
-        {obligationStatuses.map((status) => (
-          <WorkflowStep
-            key={status}
-            status={status}
-            currentStatus={obligation.status}
-            available={obligation.availableTransitions.includes(status)}
-            blockedReason={
-              status === "submitted" && showBlockedSubmitted
-                ? obligation.submitBlockedReason
-                : null
-            }
-            label={dictionary.status[status]}
-            dictionary={dictionary}
-          />
+      <ol
+        className="grid gap-3"
+        aria-label={dictionary.detail.workflowOrder}
+      >
+        {obligationStatuses.map((status, index) => (
+          <li key={status} className="grid gap-3">
+            <WorkflowStep
+              status={status}
+              currentStatus={obligation.status}
+              available={obligation.availableTransitions.includes(status)}
+              blockedReason={
+                status === "submitted" && showBlockedSubmitted
+                  ? obligation.submitBlockedReason
+                  : null
+              }
+              label={dictionary.status[status]}
+              position={index + 1}
+              total={obligationStatuses.length}
+              dictionary={dictionary}
+            />
+            {index < obligationStatuses.length - 1 ? (
+              <div
+                aria-hidden="true"
+                className="flex items-center gap-2 pl-3 text-secondary-text"
+              >
+                <span className="h-6 border-l" />
+                <ArrowRight className="size-4 rotate-90" />
+              </div>
+            ) : null}
+          </li>
         ))}
       </ol>
 
@@ -131,9 +146,6 @@ export function StatusActions({
                 </span>
                 <ArrowRight />
               </Button>
-              <p className="mt-3 text-sm text-secondary-text">
-                {dictionary.detail.statusChangeHelp}
-              </p>
             </div>
           </>
         )}
@@ -148,6 +160,8 @@ function WorkflowStep({
   available,
   blockedReason,
   label,
+  position,
+  total,
   dictionary,
 }: {
   status: ObligationStatus;
@@ -155,18 +169,21 @@ function WorkflowStep({
   available: boolean;
   blockedReason: string | null;
   label: string;
+  position: number;
+  total: number;
   dictionary: ReturnType<typeof getDictionary>;
 }) {
   const current = status === currentStatus;
   const blocked = Boolean(blockedReason);
   return (
-    <li
+    <div
       className={cn(
-        "rounded-md border bg-surface p-3",
+        "rounded-md border bg-surface p-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring",
         current && "border-accent bg-accent/10",
         available && !current && "border-in-progress/45 bg-in-progress/10",
         blocked && "border-warning/50 bg-warning/10",
       )}
+      aria-label={`${dictionary.detail.workflowStep} ${position} ${dictionary.detail.of} ${total}: ${label}`}
     >
       <div className="flex items-start gap-3">
         <span
@@ -177,7 +194,13 @@ function WorkflowStep({
             blocked && "border-warning text-warning",
           )}
         >
-          {current ? <CheckCircle2 /> : blocked ? <LockKeyhole /> : <Circle />}
+          {current ? (
+            <CheckCircle2 aria-hidden="true" />
+          ) : blocked ? (
+            <LockKeyhole aria-hidden="true" />
+          ) : (
+            <Circle aria-hidden="true" />
+          )}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -197,6 +220,6 @@ function WorkflowStep({
           ) : null}
         </div>
       </div>
-    </li>
+    </div>
   );
 }

@@ -10,7 +10,7 @@
     ]
   },
   "context": {
-    "repository_state": "The workspace has Git metadata and specification documents, but no application scaffold yet.",
+    "repository_state": "The workspace has implemented backend and frontend applications, specs, tests, README instructions, and generated API documentation.",
     "feature_type": "backend-heavy",
     "approved_functional_scope": [
       "CRUD for compliance obligations",
@@ -23,12 +23,13 @@
       "Consistent error contract"
     ],
     "constraints": [
-      "Backend code must live under a new /backend folder in this repository.",
+      "Backend code lives under /backend in this repository.",
       "The repository layout must remain compatible with a future /frontend folder in the same repository.",
       "Domain rules must not live in HTTP handlers.",
       "Domain rules must not depend on ORM models or database sessions.",
       "Frontend must consume available transitions and date-derived flags from the backend.",
-      "Raw company tax id must not appear in read responses, errors, logs, or audit records."
+      "Raw company tax id must not appear in read responses, errors, logs, or audit records.",
+      "Tests may use in-memory SQLite through the app factory while production configuration targets Supabase/PostgreSQL."
     ]
   },
   "architecture": {
@@ -115,6 +116,7 @@
       ],
       "document_metadata_change": [
         "HTTP route receives document metadata plus expectedVersion for attach or delete.",
+        "Application service rejects deleting document metadata from submitted or done obligations that still require a document.",
         "Repository enforces optimistic locking at the database write boundary and increments obligation version because the effective document-gated state changes.",
         "Document metadata attach/delete never deletes status audit history and never writes raw PII or document content to audit metadata."
       ],
@@ -248,6 +250,9 @@
         "method": "DELETE",
         "path": "/api/obligations/{obligationId}/document",
         "purpose": "Remove attached mock document metadata.",
+        "query": {
+          "expectedVersion": "required integer"
+        },
         "response": "ObligationDetailResponse"
       }
     ],
@@ -449,6 +454,7 @@
     "generic_update_status_rule": "Generic obligation update must reject forbidden or unknown status fields instead of silently ignoring them.",
     "mutation_version_rule": "Any mutation that changes an obligation requires expectedVersion and increments version, including generic update, status change, and document metadata attach/delete when the effective state changes.",
     "requires_document_update_invariant": "If an obligation is submitted or done and an update would make requires_document true, attached document metadata must already exist or the update is rejected.",
+    "document_delete_invariant": "If an obligation is submitted or done and requires_document is true, deleting its document metadata is rejected because it would leave an invalid submitted/done state.",
     "atomic_optimistic_locking": "Freshness must be enforced at the database write boundary with a conditional update by id and expectedVersion, or an equivalent transaction-safe approach, not only by read-compare-update in memory.",
     "clock": "Inject a Clock protocol in application/domain tests; production implementation returns current UTC date or configured business date provider."
   },
@@ -596,6 +602,10 @@
     {
       "case": "Document metadata is deleted after status audit exists",
       "handling": "Delete only document metadata and increment obligation version; preserve all status audit events."
+    },
+    {
+      "case": "Document metadata removal would invalidate submitted/done required-document state",
+      "handling": "Reject with INVALID_OBLIGATION_INVARIANT and leave document metadata attached."
     }
   ],
   "testing_strategy": {
@@ -619,6 +629,7 @@
       "Atomic optimistic locking rejects stale status changes without creating audit.",
       "Generic update requires expectedVersion and increments version.",
       "Document metadata attach/delete requires expectedVersion and increments version when effective state changes.",
+      "Document metadata delete rejects submitted/done required-document invariant violations.",
       "Document deletion does not delete status audit history.",
       "Successful status change creates exactly one audit event."
     ],
@@ -903,7 +914,7 @@
     }
   ],
   "implementation_task_groups": {
-    "note": "These are generated implementation tasks inside the technical spec only. The standalone todos.json gate should be created after this technical spec is approved.",
+    "note": "These generated implementation task groups are retained as delivery traceability; the standalone todos.json is implemented.",
     "groups": [
       {
         "group": "1. backend project scaffold under /backend",
@@ -968,12 +979,9 @@
     ]
   },
   "approval_gate": {
-    "next_step_after_approval": "Create specs/features/backend-obligations/todos.json with executable tasks, dependencies, and parallelization batches.",
+    "next_step_after_approval": "Use this spec as reference for maintenance and presentation.",
     "must_not_do_before_approval": [
-      "Do not scaffold code.",
-      "Do not install dependencies.",
-      "Do not create migrations.",
-      "Do not implement API routes."
+      "No pending gated action."
     ]
   }
 }

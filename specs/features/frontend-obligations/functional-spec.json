@@ -6,7 +6,6 @@
     "created_at": "2026-07-03",
     "approved_at": "2026-07-03",
     "source_inputs": [
-      "Copia de Prueba tecnica - Fullstack Engineer.md",
       "README.md",
       "backend/docs/api_review.md",
       "backend/docs/openapi.json",
@@ -14,8 +13,8 @@
     ]
   },
   "context_scan": {
-    "repository_state": "The repository already contains a working backend, backend specs, tests, and a versioned OpenAPI snapshot. No frontend scaffold exists yet.",
-    "detected_frontend_stack": "No package.json, Next.js app directory, src directory, pages directory, Tailwind config, components.json, design token file, or frontend test setup is currently present.",
+    "repository_state": "The repository contains an implemented FastAPI backend, implemented Next.js frontend, specs, tests, README instructions, and versioned API documentation.",
+    "detected_frontend_stack": "frontend/ is a Next.js App Router application with React, TypeScript, Tailwind CSS, shadcn-style primitives, Vitest, Testing Library, locale routes, and feature modules under src/.",
     "detected_backend_contract": [
       "GET /api/obligations returns compact dashboard list items.",
       "POST /api/obligations creates an obligation and returns full detail.",
@@ -27,7 +26,7 @@
       "DELETE /api/obligations/{id} deletes the obligation."
     ],
     "runtime_constraints": [
-      "No frontend application scaffold exists yet.",
+      "Frontend and backend are implemented in sibling frontend/ and backend/ folders.",
       "The frontend must consume the backend API contract and must not become the source of truth for domain rules.",
       "The backend returns masked company tax id values on reads and never returns raw companyTaxId.",
       "All mutations that change an existing obligation require expectedVersion."
@@ -43,10 +42,10 @@
       "Internationalized user-facing copy",
       "API loading, empty, error, and conflict states"
     ],
-    "test_setup_available": "No frontend test setup exists yet. Backend tests and API contract snapshots exist."
+    "test_setup_available": "Frontend Vitest/Testing Library tests and backend pytest tests exist, along with API contract snapshots."
   },
   "scope": {
-    "product_goal": "Provide a professional compliance obligations frontend that lets founders or internal teams review, create, edit, and progress obligations while clearly showing risk, ownership, due dates, document requirements, and audit history from the backend.",
+    "product_goal": "Provide a professional compliance obligations frontend that lets founders or internal teams review, create, edit, and progress obligations while clearly showing risk, ownership, due dates, document requirements, document metadata, and audit history from the backend.",
     "in_scope": [
       "Dashboard with obligation KPIs: total obligations, count by status, overdue count, and due-soon count.",
       "Dashboard filters for status, obligation type, due timing, and free-text name or owner matching.",
@@ -83,12 +82,12 @@
     "obligation": "A compliance task with type, title, description, status, due date, owner, document requirement, masked company tax id, version, and optional document metadata.",
     "dashboard": "The primary work surface for scanning obligations, due risk, owner accountability, and next actions.",
     "detail_view": "The accountability record for one obligation, including displayable fields, available transitions, document state, and status audit history.",
-    "available_transition": "A backend-provided target status that the current user interface may offer as an action.",
+    "available_transition": "A backend-provided target status that the current user interface may offer as an action. The frontend also shows the natural forward order pending -> in_progress -> submitted -> done as visual guidance only.",
     "blocked_transition": "A workflow action that cannot currently be performed and must be explained using backend-provided blocking information when available.",
     "expected_version": "The obligation version last read by the frontend and sent with mutation requests to prevent stale writes.",
     "api_validation_error": "A backend response telling the user that submitted input is invalid or violates a rule.",
     "version_conflict": "A backend response telling the user that the obligation changed after the current screen loaded and must be refreshed before retrying.",
-      "document_metadata": "User-entered file metadata that represents an attached document without uploading binary content."
+    "document_metadata": "File metadata derived from a selected local file; binary content is not uploaded in this scope."
   },
   "user_roles": [
     {
@@ -246,6 +245,11 @@
       "id": "BR14",
       "name": "Risk hierarchy",
       "rule": "Overdue obligations must be visually stronger than due-soon obligations, and completed or submitted obligations must not be styled as active risk solely because of their due dates."
+    },
+    {
+      "id": "BR15",
+      "name": "Workflow order is visual only",
+      "rule": "The detail view may show pending -> in_progress -> submitted -> done as the natural forward order, but valid actions must still come only from backend-provided availableTransitions."
     }
   ],
   "ux_behavior_and_interaction_expectations": [
@@ -256,10 +260,10 @@
     "Validation errors appear near the relevant field where possible and also remain understandable at form level.",
     "Destructive actions such as delete or document removal require clear confirmation.",
     "Status transition buttons show pending state while the mutation is in flight and prevent duplicate submissions.",
-    "After a successful create, edit, document, or transition mutation, the UI uses the returned obligation detail as the refreshed source of display data.",
+    "After a successful create, edit, document, or transition mutation, the UI revalidates or refreshes the affected route so backend data remains the display source.",
     "When a version conflict occurs, the UI explains that the record changed elsewhere and offers a refresh action.",
     "The detail view makes audit history easy to scan chronologically and does not mix audit records with editable form fields.",
-    "The create and edit forms clearly distinguish required fields from optional description and document metadata.",
+    "The create and edit forms clearly distinguish required fields from optional description; document metadata is managed from the detail view.",
     "The UI copy should feel precise, calm, and accountable, suitable for compliance or fintech operations."
   ],
   "acceptance_criteria": [
@@ -324,7 +328,7 @@
       "title": "Available transitions are backend-driven",
       "given": "The backend returns availableTransitions for an obligation.",
       "when": "The detail view renders status actions.",
-      "then": "The UI renders actions from availableTransitions and does not offer target statuses that are not present in the response."
+      "then": "The UI renders selectable actions from availableTransitions and does not offer target statuses that are not present in the response; any displayed workflow order is only explanatory."
     },
     {
       "id": "AC10",
@@ -380,7 +384,7 @@
       "title": "Remove document metadata",
       "given": "An obligation has document metadata.",
       "when": "The user confirms removal and the backend succeeds.",
-      "then": "The UI displays the returned detail without document metadata and updates any blocked submission explanation from the backend."
+      "then": "The UI refreshes the detail without document metadata and updates any blocked submission explanation from the backend. If backend rejects removal because it would violate a submitted/done required-document invariant, the UI shows the API error."
     },
     {
       "id": "AC18",
@@ -504,6 +508,7 @@
       "INVALID_STATUS_TRANSITION",
       "DOCUMENT_REQUIRED_FOR_SUBMISSION",
       "OBLIGATION_VERSION_CONFLICT",
+      "INVALID_OBLIGATION_INVARIANT",
       "INTERNAL_SERVER_ERROR"
     ]
   },
@@ -600,14 +605,10 @@
     }
   ],
   "approval_gate": {
-    "required_user_action": "Approve this functional spec before creating technical-spec.json.",
-    "next_step_after_approval": "Create specs/features/frontend-obligations/technical-spec.json with frontend architecture, module boundaries, API contracts, state handling, i18n approach, shadcn usage, testing strategy, and implementation phases.",
+    "required_user_action": "No approval gate remains; implementation is complete and this spec is retained as aligned product documentation.",
+    "next_step_after_approval": "Use this spec as reference for maintenance and presentation.",
     "must_not_do_before_approval": [
-      "Do not create the frontend application folder.",
-      "Do not scaffold Next.js.",
-      "Do not install npm dependencies.",
-      "Do not implement UI components.",
-      "Do not create todos.json."
+      "No pending gated action."
     ]
   }
 }

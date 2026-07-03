@@ -23,3 +23,8 @@ def test_valid_status_transitions_are_accepted(current, target):
 def test_invalid_status_transition_is_rejected():
     with pytest.raises(InvalidStatusTransition):
         validate_transition(ObligationStatus.PENDING, ObligationStatus.DONE)
+
+
+def test_unknown_current_status_is_rejected_without_key_error():
+    with pytest.raises(InvalidStatusTransition):
+        validate_transition("archived", ObligationStatus.DONE)  # type: ignore[arg-type]

@@ -176,6 +176,7 @@ export function RemoveDocumentButton({
     removeDocumentAction.bind(null, locale, obligationId),
     initialActionState,
   );
+  const formRef = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (state.status === "success") router.refresh();
   }, [router, state.status]);
@@ -206,13 +207,16 @@ export function RemoveDocumentButton({
                 {dictionary.form.cancel}
               </Button>
             </AlertDialogCancel>
-            <form action={formAction}>
+            <form ref={formRef} action={formAction}>
               <input type="hidden" name="expectedVersion" value={version} readOnly />
-              <AlertDialogAction asChild>
-                <Button type="submit" variant="destructive" disabled={pending}>
-                  {pending ? dictionary.form.pending : dictionary.detail.removeDocument}
-                </Button>
-              </AlertDialogAction>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={pending}
+                onClick={() => formRef.current?.requestSubmit()}
+              >
+                {pending ? dictionary.form.pending : dictionary.detail.removeDocument}
+              </Button>
             </form>
           </AlertDialogFooter>
         </AlertDialogContent>
