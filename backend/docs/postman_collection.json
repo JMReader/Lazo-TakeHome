@@ -1,0 +1,424 @@
+{
+  "info": {
+    "_postman_id": "4b5f2a90-7c7a-4d92-9f2f-lazo-backend",
+    "name": "Lazo Compliance Obligations Backend",
+    "description": "Behavior test collection for the FastAPI backend. Run sequentially. It stores obligationId and version automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8001"
+    },
+    {
+      "key": "obligationId",
+      "value": ""
+    },
+    {
+      "key": "version",
+      "value": ""
+    },
+    {
+      "key": "staleVersion",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('health returns 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('health payload is ok', function () { pm.expect(pm.response.json()).to.eql({ status: 'ok' }); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 List obligations",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/obligations"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('list returns 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('list has obligations array', function () { pm.expect(pm.response.json()).to.have.property('obligations').that.is.an('array'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Create rejects forbidden status",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"annual_report\",\n  \"title\": \"Forbidden status create\",\n  \"description\": \"This should fail\",\n  \"status\": \"done\",\n  \"dueDate\": \"2026-08-01\",\n  \"owner\": \"Ops\",\n  \"requiresDocument\": false,\n  \"companyTaxId\": \"12-3456789\"\n}"
+        },
+        "url": "{{baseUrl}}/api/obligations"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('create with status returns 422', function () { pm.response.to.have.status(422); });",
+              "pm.test('validation error is machine readable', function () { pm.expect(pm.response.json().code).to.eql('VALIDATION_ERROR'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Create obligation requiring document",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"annual_report\",\n  \"title\": \"Postman annual report\",\n  \"description\": \"Created by Postman collection\",\n  \"dueDate\": \"2026-08-01\",\n  \"owner\": \"Ops\",\n  \"requiresDocument\": true,\n  \"companyTaxId\": \"12-3456789\"\n}"
+        },
+        "url": "{{baseUrl}}/api/obligations"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('create returns 201', function () { pm.response.to.have.status(201); });",
+              "const obligation = pm.response.json().obligation;",
+              "pm.collectionVariables.set('obligationId', obligation.id);",
+              "pm.collectionVariables.set('version', String(obligation.version));",
+              "pm.test('created pending version 1', function () { pm.expect(obligation.status).to.eql('pending'); pm.expect(obligation.version).to.eql(1); });",
+              "pm.test('tax id is masked only', function () { pm.expect(obligation.companyTaxIdMasked).to.eql('****6789'); pm.expect(JSON.stringify(obligation)).to.not.include('12-3456789'); });",
+              "pm.test('submit is not initially available from pending', function () { pm.expect(obligation.availableTransitions).to.eql(['in_progress']); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Get created obligation detail",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/obligations/{{obligationId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('detail returns 200', function () { pm.response.to.have.status(200); });",
+              "const obligation = pm.response.json().obligation;",
+              "pm.test('detail id matches stored id', function () { pm.expect(obligation.id).to.eql(pm.collectionVariables.get('obligationId')); });",
+              "pm.test('detail contains expected domain flags', function () { pm.expect(obligation).to.have.property('isOverdue'); pm.expect(obligation).to.have.property('isDueSoon'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Generic update rejects status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"done\",\n  \"expectedVersion\": {{version}}\n}"
+        },
+        "url": "{{baseUrl}}/api/obligations/{{obligationId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('generic status update returns 422', function () { pm.response.to.have.status(422); });",
+              "pm.test('generic status update is validation error', function () { pm.expect(pm.response.json().code).to.eql('VALIDATION_ERROR'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Transition pending to in_progress",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"targetStatus\": \"in_progress\",\n  \"expectedVersion\": {{version}},\n  \"reason\": \"Started from Postman\"\n}"
+        },
+        "url": "{{baseUrl}}/api/obligations/{{obligationId}}/status"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const previousVersion = pm.collectionVariables.get('version');",
+              "pm.test('transition returns 200', function () { pm.response.to.have.status(200); });",
+              "const obligation = pm.response.json().obligation;",
+              "pm.collectionVariables.set('staleVersion', previousVersion);",
+              "pm.collectionVariables.set('version', String(obligation.version));",
+              "pm.test('status is in_progress', function () { pm.expect(obligation.status).to.eql('in_progress'); });",
+              "pm.test('version increments', function () { pm.expect(obligation.version).to.eql(Number(previousVersion) + 1); });",
+              "pm.test('audit has one event', function () { pm.expect(obligation.auditHistory.length).to.eql(1); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Stale transition returns conflict and creates no audit",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"targetStatus\": \"submitted\",\n  \"expectedVersion\": {{staleVersion}}\n}"
+        },
+        "url": "{{baseUrl}}/api/obligations/{{obligationId}}/status"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('stale transition returns 409', function () { pm.response.to.have.status(409); });",
+              "pm.test('conflict code is stable', function () { pm.expect(pm.response.json().code).to.eql('OBLIGATION_VERSION_CONFLICT'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Submit blocked without required document",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"targetStatus\": \"submitted\",\n  \"expectedVersion\": {{version}}\n}"
+        },
+        "url": "{{baseUrl}}/api/obligations/{{obligationId}}/status"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('submit without document returns 422', function () { pm.response.to.have.status(422); });",
+              "pm.test('document required code is stable', function () { pm.expect(pm.response.json().code).to.eql('DOCUMENT_REQUIRED_FOR_SUBMISSION'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Attach document metadata",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fileName\": \"annual-report.pdf\",\n  \"contentType\": \"application/pdf\",\n  \"sizeBytes\": 12345,\n  \"expectedVersion\": {{version}}\n}"
+        },
+        "url": "{{baseUrl}}/api/obligations/{{obligationId}}/document"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('attach document returns 200', function () { pm.response.to.have.status(200); });",
+              "const obligation = pm.response.json().obligation;",
+              "pm.collectionVariables.set('version', String(obligation.version));",
+              "pm.test('hasDocument true', function () { pm.expect(obligation.hasDocument).to.eql(true); });",
+              "pm.test('mock storage key generated', function () { pm.expect(obligation.document.storageKey).to.include('mock://obligations/'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Submit succeeds with document",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"targetStatus\": \"submitted\",\n  \"expectedVersion\": {{version}},\n  \"reason\": \"Submitted from Postman\"\n}"
+        },
+        "url": "{{baseUrl}}/api/obligations/{{obligationId}}/status"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('submit returns 200', function () { pm.response.to.have.status(200); });",
+              "const obligation = pm.response.json().obligation;",
+              "pm.collectionVariables.set('version', String(obligation.version));",
+              "pm.test('status is submitted', function () { pm.expect(obligation.status).to.eql('submitted'); });",
+              "pm.test('audit has two status changes', function () { pm.expect(obligation.auditHistory.length).to.eql(2); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Get detail after submission",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/obligations/{{obligationId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('detail returns 200', function () { pm.response.to.have.status(200); });",
+              "const obligation = pm.response.json().obligation;",
+              "pm.test('submitted item is not overdue or due soon', function () { pm.expect(obligation.isOverdue).to.eql(false); pm.expect(obligation.isDueSoon).to.eql(false); });",
+              "pm.test('audit history is visible', function () { pm.expect(obligation.auditHistory.length).to.be.at.least(2); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 Delete document metadata preserves audit",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/api/obligations/{{obligationId}}/document?expectedVersion={{version}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('delete document returns 200', function () { pm.response.to.have.status(200); });",
+              "const obligation = pm.response.json().obligation;",
+              "pm.collectionVariables.set('version', String(obligation.version));",
+              "pm.test('document removed', function () { pm.expect(obligation.hasDocument).to.eql(false); });",
+              "pm.test('status audit remains', function () { pm.expect(obligation.auditHistory.length).to.be.at.least(2); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 Delete obligation cleanup",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/api/obligations/{{obligationId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('delete returns 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('delete payload is simple', function () { pm.expect(pm.response.json()).to.eql({ deleted: true }); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 Get deleted obligation returns not found",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/obligations/{{obligationId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('deleted detail returns 404', function () { pm.response.to.have.status(404); });",
+              "pm.test('not found code is stable', function () { pm.expect(pm.response.json().code).to.eql('OBLIGATION_NOT_FOUND'); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
