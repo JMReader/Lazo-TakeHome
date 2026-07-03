@@ -1,0 +1,1125 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Compliance Obligations Tracker",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/obligations": {
+      "get": {
+        "tags": [
+          "obligations"
+        ],
+        "summary": "List Obligations",
+        "operationId": "list_obligations_api_obligations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObligationListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "obligations"
+        ],
+        "summary": "Create Obligation",
+        "operationId": "create_obligation_api_obligations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObligationCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObligationDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or domain rule error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/obligations/{obligation_id}": {
+      "get": {
+        "tags": [
+          "obligations"
+        ],
+        "summary": "Get Obligation",
+        "operationId": "get_obligation_api_obligations__obligation_id__get",
+        "parameters": [
+          {
+            "name": "obligation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Obligation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObligationDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Obligation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "obligations"
+        ],
+        "summary": "Update Obligation",
+        "operationId": "update_obligation_api_obligations__obligation_id__patch",
+        "parameters": [
+          {
+            "name": "obligation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Obligation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObligationUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObligationDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Obligation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic locking version conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or domain rule error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "obligations"
+        ],
+        "summary": "Delete Obligation",
+        "operationId": "delete_obligation_api_obligations__obligation_id__delete",
+        "parameters": [
+          {
+            "name": "obligation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Obligation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Delete Obligation Api Obligations  Obligation Id  Delete"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Obligation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/obligations/{obligation_id}/status": {
+      "patch": {
+        "tags": [
+          "obligations"
+        ],
+        "summary": "Change Status",
+        "operationId": "change_status_api_obligations__obligation_id__status_patch",
+        "parameters": [
+          {
+            "name": "obligation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Obligation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatusChangeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObligationDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Obligation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic locking version conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or domain rule error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/obligations/{obligation_id}/document": {
+      "put": {
+        "tags": [
+          "obligations"
+        ],
+        "summary": "Attach Document",
+        "operationId": "attach_document_api_obligations__obligation_id__document_put",
+        "parameters": [
+          {
+            "name": "obligation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Obligation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObligationDocumentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObligationDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Obligation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic locking version conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or domain rule error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "obligations"
+        ],
+        "summary": "Delete Document",
+        "operationId": "delete_document_api_obligations__obligation_id__document_delete",
+        "parameters": [
+          {
+            "name": "obligation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Obligation Id"
+            }
+          },
+          {
+            "name": "expectedVersion",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Expectedversion"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObligationDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Obligation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Optimistic locking version conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or domain rule error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuditEventResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "fromStatus": {
+            "$ref": "#/components/schemas/ObligationStatus"
+          },
+          "toStatus": {
+            "$ref": "#/components/schemas/ObligationStatus"
+          },
+          "changedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Changedat"
+          },
+          "changedBy": {
+            "type": "string",
+            "title": "Changedby"
+          },
+          "obligationVersion": {
+            "type": "integer",
+            "title": "Obligationversion"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "fromStatus",
+          "toStatus",
+          "changedAt",
+          "changedBy",
+          "obligationVersion"
+        ],
+        "title": "AuditEventResponse"
+      },
+      "DocumentResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "fileName": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "contentType": {
+            "type": "string",
+            "title": "Contenttype"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "title": "Sizebytes"
+          },
+          "storageKey": {
+            "type": "string",
+            "title": "Storagekey"
+          },
+          "uploadedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Uploadedat"
+          },
+          "uploadedBy": {
+            "type": "string",
+            "title": "Uploadedby"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "fileName",
+          "contentType",
+          "sizeBytes",
+          "storageKey",
+          "uploadedAt",
+          "uploadedBy"
+        ],
+        "title": "DocumentResponse"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Details"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ObligationCreateRequest": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/ObligationType"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Duedate"
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Owner"
+          },
+          "requiresDocument": {
+            "type": "boolean",
+            "title": "Requiresdocument"
+          },
+          "companyTaxId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Companytaxid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "dueDate",
+          "owner",
+          "requiresDocument",
+          "companyTaxId"
+        ],
+        "title": "ObligationCreateRequest"
+      },
+      "ObligationDetailItemResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ObligationType"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ObligationStatus"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Duedate"
+          },
+          "owner": {
+            "type": "string",
+            "title": "Owner"
+          },
+          "requiresDocument": {
+            "type": "boolean",
+            "title": "Requiresdocument"
+          },
+          "hasDocument": {
+            "type": "boolean",
+            "title": "Hasdocument"
+          },
+          "companyTaxIdMasked": {
+            "type": "string",
+            "title": "Companytaxidmasked"
+          },
+          "isOverdue": {
+            "type": "boolean",
+            "title": "Isoverdue"
+          },
+          "isDueSoon": {
+            "type": "boolean",
+            "title": "Isduesoon"
+          },
+          "availableTransitions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Availabletransitions"
+          },
+          "submitBlockedReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitblockedreason"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "document": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DocumentResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "auditHistory": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEventResponse"
+            },
+            "type": "array",
+            "title": "Audithistory"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "title",
+          "description",
+          "status",
+          "dueDate",
+          "owner",
+          "requiresDocument",
+          "hasDocument",
+          "companyTaxIdMasked",
+          "isOverdue",
+          "isDueSoon",
+          "availableTransitions",
+          "submitBlockedReason",
+          "version"
+        ],
+        "title": "ObligationDetailItemResponse"
+      },
+      "ObligationDetailResponse": {
+        "properties": {
+          "obligation": {
+            "$ref": "#/components/schemas/ObligationDetailItemResponse"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "obligation"
+        ],
+        "title": "ObligationDetailResponse"
+      },
+      "ObligationDocumentRequest": {
+        "properties": {
+          "fileName": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Filename"
+          },
+          "contentType": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Contenttype"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Sizebytes"
+          },
+          "storageKey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storagekey"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expectedversion"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "fileName",
+          "contentType",
+          "sizeBytes",
+          "expectedVersion"
+        ],
+        "title": "ObligationDocumentRequest"
+      },
+      "ObligationListItemResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ObligationType"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ObligationStatus"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "title": "Duedate"
+          },
+          "owner": {
+            "type": "string",
+            "title": "Owner"
+          },
+          "requiresDocument": {
+            "type": "boolean",
+            "title": "Requiresdocument"
+          },
+          "hasDocument": {
+            "type": "boolean",
+            "title": "Hasdocument"
+          },
+          "companyTaxIdMasked": {
+            "type": "string",
+            "title": "Companytaxidmasked"
+          },
+          "isOverdue": {
+            "type": "boolean",
+            "title": "Isoverdue"
+          },
+          "isDueSoon": {
+            "type": "boolean",
+            "title": "Isduesoon"
+          },
+          "availableTransitions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Availabletransitions"
+          },
+          "submitBlockedReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submitblockedreason"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "title",
+          "description",
+          "status",
+          "dueDate",
+          "owner",
+          "requiresDocument",
+          "hasDocument",
+          "companyTaxIdMasked",
+          "isOverdue",
+          "isDueSoon",
+          "availableTransitions",
+          "submitBlockedReason",
+          "version"
+        ],
+        "title": "ObligationListItemResponse"
+      },
+      "ObligationListResponse": {
+        "properties": {
+          "obligations": {
+            "items": {
+              "$ref": "#/components/schemas/ObligationListItemResponse"
+            },
+            "type": "array",
+            "title": "Obligations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "obligations"
+        ],
+        "title": "ObligationListResponse"
+      },
+      "ObligationStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "in_progress",
+          "submitted",
+          "done"
+        ],
+        "title": "ObligationStatus"
+      },
+      "ObligationType": {
+        "type": "string",
+        "enum": [
+          "annual_report",
+          "franchise_tax",
+          "boi_report",
+          "registered_agent_renewal"
+        ],
+        "title": "ObligationType"
+      },
+      "ObligationUpdateRequest": {
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expectedversion"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObligationType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "dueDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duedate"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner"
+          },
+          "requiresDocument": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requiresdocument"
+          },
+          "companyTaxId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Companytaxid"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expectedVersion"
+        ],
+        "title": "ObligationUpdateRequest"
+      },
+      "StatusChangeRequest": {
+        "properties": {
+          "targetStatus": {
+            "$ref": "#/components/schemas/ObligationStatus"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expectedversion"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "targetStatus",
+          "expectedVersion"
+        ],
+        "title": "StatusChangeRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
