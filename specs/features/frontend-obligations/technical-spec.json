@@ -1,0 +1,973 @@
+{
+  "meta": {
+    "feature_id": "frontend-obligations",
+    "document_type": "technical_specification",
+    "status": "approved",
+    "created_at": "2026-07-03",
+    "approved_at": "2026-07-03",
+    "depends_on": [
+      "specs/features/frontend-obligations/functional-spec.json",
+      "backend/docs/openapi.json"
+    ]
+  },
+  "context": {
+    "repository_state": "Backend is implemented under backend/. No frontend scaffold exists yet.",
+    "feature_type": "frontend-heavy",
+    "approved_functional_scope": [
+      "Dashboard KPIs, filters, due-date ordered list, and risk highlighting.",
+      "Obligation detail with masked tax id, document metadata, audit history, and backend-provided transitions.",
+      "Create and edit forms with basic UX validation and backend error display.",
+      "Status transition actions driven only by backend availableTransitions.",
+      "Document metadata attach/remove flow.",
+      "Guarded delete flow.",
+      "English and Spanish user-facing copy.",
+      "Semantic light/dark design language.",
+      "Consistent loading, empty, error, not-found, and conflict states."
+    ],
+    "constraints": [
+      "Create frontend code later under a new frontend/ folder, not during this spec gate.",
+      "Use Next.js App Router with React and strict TypeScript.",
+      "Use Server Components by default and Client Components only for real browser interactivity.",
+      "Use Server Actions for in-app mutations where appropriate.",
+      "Use Tailwind CSS and shadcn/ui as component primitives.",
+      "Do not duplicate backend domain rules for transitions, document-gated submission, overdue, due soon, audit, or tax id masking.",
+      "Use backend-provided version as expectedVersion for existing-obligation mutations.",
+      "Do not store or log raw companyTaxId outside transient form submission state."
+    ]
+  },
+  "architecture": {
+    "runtime": {
+      "project_root": "frontend",
+      "framework": "Next.js App Router",
+      "language": "TypeScript strict",
+      "react_model": "Server Components by default, Client Components at interaction leaves.",
+      "styling": "Tailwind CSS with semantic tokens and shadcn/ui primitives.",
+      "ui_foundation": "shadcn/ui components copied into the app and composed into feature-specific UI.",
+      "package_manager": "Use the package manager selected during scaffold; default to npm if no repo-level package manager exists."
+    },
+    "scaffold_decisions": {
+      "directory": "frontend/",
+      "src_dir": true,
+      "routing_root": "frontend/src/app",
+      "import_alias": "@/*",
+      "reasoning": [
+        "Keeps the existing backend/ and future frontend/ clearly separated in the same repository.",
+        "src/ keeps route files, feature modules, and shared code grouped under the frontend app.",
+        "The alias avoids brittle relative imports once feature slices grow."
+      ]
+    },
+    "module_boundaries": {
+      "src/app": {
+        "responsibility": "Route segments, layouts, loading/error/not-found boundaries, metadata, and route-level composition.",
+        "must_not_do": [
+          "No domain rule reconstruction.",
+          "No low-level fetch details directly inside deeply nested UI.",
+          "No broad client wrappers around whole pages unless required."
+        ]
+      },
+      "src/widgets": {
+        "responsibility": "Page-level compositions such as dashboard KPI strip, dashboard filter bar, obligations table, detail summary, document panel, audit trail, and action panel.",
+        "must_not_do": [
+          "No direct HTTP fetch implementation.",
+          "No mutation payload construction beyond calling feature actions."
+        ]
+      },
+      "src/features": {
+        "responsibility": "User operations: create obligation, edit obligation, change status, attach document metadata, remove document metadata, delete obligation, switch locale, and apply dashboard filters.",
+        "must_not_do": [
+          "No state-machine validation beyond rendering backend-provided availability.",
+          "No overdue or due-soon calculation."
+        ]
+      },
+      "src/entities/obligation": {
+        "responsibility": "Obligation DTO types, UI-facing labels, lightweight display helpers, table row view models, and entity-specific presentational components.",
+        "must_not_do": [
+          "No authoritative transition map.",
+          "No document-gate logic.",
+          "No tax id masking."
+        ]
+      },
+      "src/shared/api": {
+        "responsibility": "Typed API client, endpoint functions, request/response DTOs, error normalization, and safe fetch defaults.",
+        "must_not_do": [
+          "No UI copy.",
+          "No browser storage of sensitive request payloads.",
+          "No swallowing backend error codes."
+        ]
+      },
+      "src/shared/i18n": {
+        "responsibility": "Locale routing helpers, dictionaries, enum label maps, error copy, and formatting helpers.",
+        "must_not_do": [
+          "No domain decisions based on locale labels.",
+          "No raw enum display as primary user-facing text."
+        ]
+      },
+      "src/shared/ui": {
+        "responsibility": "shadcn/ui source components and small app-level wrappers for repeated layout or state patterns.",
+        "must_not_do": [
+          "No obligation-specific business decisions."
+        ]
+      },
+      "src/shared/config": {
+        "responsibility": "Environment variable access, API base URL resolution, and runtime-safe config validation.",
+        "must_not_do": [
+          "No module-scope initialization of external service clients.",
+          "No hardcoded backend URL outside documented local defaults."
+        ]
+      },
+      "src/shared/lib": {
+        "responsibility": "Generic utilities such as className merge, date formatting wrappers, and non-domain collection helpers.",
+        "must_not_do": [
+          "No obligation workflow rules."
+        ]
+      }
+    },
+    "routing": {
+      "locale_strategy": {
+        "decision": "Use a simple locale route segment with /en and /es.",
+        "routes": [
+          "/[locale]",
+          "/[locale]/obligations/new",
+          "/[locale]/obligations/[obligationId]",
+          "/[locale]/obligations/[obligationId]/edit"
+        ],
+        "rationale": "Route-based locale keeps language visible, avoids user preference storage, and is enough to demonstrate en/es."
+      },
+      "default_redirect": {
+        "decision": "Redirect / to the default locale dashboard.",
+        "default_locale": "en"
+      },
+      "not_found": {
+        "decision": "Use localized not-found states for invalid locale and missing obligations."
+      }
+    },
+    "rendering_strategy": {
+      "dashboard_page": {
+        "component_model": "Server Component route reads searchParams, fetches obligations from backend, derives UI-only KPI counts and filter results from backend-provided fields, and renders widgets.",
+        "client_boundaries": [
+          "Filter controls that manage typed input or update URL search params.",
+          "Row action menus if they require browser interaction."
+        ],
+        "rationale": "Keeps initial dashboard fast and avoids shipping list data management logic to the client."
+      },
+      "detail_page": {
+        "component_model": "Server Component fetches obligation detail and passes data to mostly server-rendered widgets.",
+        "client_boundaries": [
+          "Status action controls with pending state.",
+          "Delete confirmation dialog.",
+          "Document metadata dialogs or forms if used inline."
+        ],
+        "rationale": "The detail record should be fresh and inspectable, while mutations stay isolated."
+      },
+      "create_page": {
+        "component_model": "Server-rendered route shell with a Client Component form when controlled validation, pending state, and inline API error display are needed.",
+        "mutation_model": "Server Action posts to backend and redirects or returns structured form errors."
+      },
+      "edit_page": {
+        "component_model": "Server Component fetches current detail, then renders a Client Component form initialized from backend data.",
+        "mutation_model": "Server Action patches backend with expectedVersion and returned editable fields."
+      },
+      "loading_and_errors": {
+        "decision": "Use route segment loading.tsx, error.tsx, and not-found.tsx plus component-level Alert/Empty/Skeleton states for nested states."
+      }
+    },
+    "data_flow": {
+      "reads": [
+        "Route Server Component calls shared API endpoint function.",
+        "API endpoint function fetches backend using API base URL and typed response parsing.",
+        "Server Component passes only required serializable data to widgets and Client Components.",
+        "Client Components receive minimal props needed for interactions."
+      ],
+      "mutations": [
+        "Client form or action control invokes a Server Action.",
+        "Server Action validates basic form shape and calls shared API endpoint function.",
+        "Server Action sends expectedVersion for edit, status, document, and delete-related versioned operations where backend requires it.",
+        "Server Action maps normalized backend errors into form/action state.",
+        "On success, Server Action redirects or revalidates the relevant route so UI uses backend-returned or freshly fetched data."
+      ],
+      "dashboard_filtering": [
+        "Backend list is the source for domain-derived fields.",
+        "Status, type, and due timing filters are represented in URL search params.",
+        "Name or owner matching uses a free-text query over loaded title and owner fields.",
+        "Filtering is UI-level narrowing, not domain validation."
+      ],
+      "kpi_derivation": [
+        "Total, status counts, overdue count, and due-soon count are computed from the backend list response.",
+        "Counts use backend-provided status, isOverdue, and isDueSoon fields.",
+        "No frontend date arithmetic decides compliance risk."
+      ]
+    },
+    "server_client_boundaries": {
+      "server_only": [
+        "API base URL access when it should not be exposed to the browser.",
+        "Fetches to backend for route data.",
+        "Server Actions for create, edit, status, document, and delete mutations.",
+        "Route-level redirects and not-found decisions.",
+        "KPI aggregation and URL-param filtering for initial dashboard render."
+      ],
+      "client_only": [
+        "Controlled form inputs.",
+        "Filter input typing and URL update interactions.",
+        "Dialogs, dropdown menus, and confirmation modals.",
+        "Pending button state and inline action feedback.",
+        "Theme or locale switcher interactions if implemented as controls."
+      ],
+      "boundary_rules": [
+        "Push use client as far down the tree as possible.",
+        "Do not wrap full route pages in Client Components.",
+        "Do not serialize raw companyTaxId into reusable props after successful submission.",
+        "Minimize props passed to Client Components to reduce RSC payload."
+      ]
+    },
+    "security_and_privacy": {
+      "tax_id": [
+        "Create and edit forms may temporarily hold companyTaxId as form input.",
+        "After submission, screens must use companyTaxIdMasked only.",
+        "Do not store companyTaxId in localStorage, sessionStorage, URL params, logs, analytics, toast payloads, or error details.",
+        "Do not print request bodies in client or server console logs."
+      ],
+      "errors": [
+        "Show sanitized backend messages or localized copies by code.",
+        "Do not expose stack traces or raw backend validation internals beyond useful field-level messages."
+      ],
+      "auth": [
+        "Authentication is out of scope.",
+        "Do not add fake authorization gates that imply real security."
+      ]
+    }
+  },
+  "interfaces": {
+    "environment": {
+      "NEXT_PUBLIC_APP_DEFAULT_LOCALE": {
+        "required": false,
+        "default": "en",
+        "description": "Default app locale for root redirect."
+      },
+      "BACKEND_API_BASE_URL": {
+        "required": true,
+        "example": "http://127.0.0.1:8001",
+        "description": "Server-side URL for FastAPI backend. Keep server-only unless browser direct fetch is intentionally introduced."
+      }
+    },
+    "api_contract": {
+      "source_of_truth": "backend/docs/openapi.json and backend/app/api/schemas.py",
+      "endpoints": [
+        {
+          "name": "listObligations",
+          "method": "GET",
+          "path": "/api/obligations",
+          "response": "ObligationListResponse",
+          "used_by": [
+            "Dashboard page"
+          ]
+        },
+        {
+          "name": "createObligation",
+          "method": "POST",
+          "path": "/api/obligations",
+          "request": "ObligationCreateRequest",
+          "response": "ObligationDetailResponse",
+          "used_by": [
+            "Create obligation form"
+          ]
+        },
+        {
+          "name": "getObligation",
+          "method": "GET",
+          "path": "/api/obligations/{obligationId}",
+          "response": "ObligationDetailResponse",
+          "used_by": [
+            "Detail page",
+            "Edit page"
+          ]
+        },
+        {
+          "name": "updateObligation",
+          "method": "PATCH",
+          "path": "/api/obligations/{obligationId}",
+          "request": "ObligationUpdateRequest",
+          "response": "ObligationDetailResponse",
+          "used_by": [
+            "Edit obligation form"
+          ]
+        },
+        {
+          "name": "changeStatus",
+          "method": "PATCH",
+          "path": "/api/obligations/{obligationId}/status",
+          "request": "StatusChangeRequest",
+          "response": "ObligationDetailResponse",
+          "used_by": [
+            "Status transition actions"
+          ]
+        },
+        {
+          "name": "attachDocument",
+          "method": "PUT",
+          "path": "/api/obligations/{obligationId}/document",
+          "request": "ObligationDocumentRequest",
+          "response": "ObligationDetailResponse",
+          "used_by": [
+            "Document metadata form"
+          ]
+        },
+        {
+          "name": "deleteDocument",
+          "method": "DELETE",
+          "path": "/api/obligations/{obligationId}/document?expectedVersion={version}",
+          "response": "ObligationDetailResponse",
+          "used_by": [
+            "Document removal action"
+          ]
+        },
+        {
+          "name": "deleteObligation",
+          "method": "DELETE",
+          "path": "/api/obligations/{obligationId}",
+          "response": "{ deleted: boolean }",
+          "used_by": [
+            "Delete obligation action"
+          ]
+        }
+      ]
+    },
+    "dto_types": {
+      "ObligationStatus": [
+        "pending",
+        "in_progress",
+        "submitted",
+        "done"
+      ],
+      "ObligationType": [
+        "annual_report",
+        "franchise_tax",
+        "boi_report",
+        "registered_agent_renewal"
+      ],
+      "ObligationListItem": {
+        "id": "string",
+        "type": "ObligationType",
+        "title": "string",
+        "description": "string",
+        "status": "ObligationStatus",
+        "dueDate": "YYYY-MM-DD string",
+        "owner": "string",
+        "requiresDocument": "boolean",
+        "hasDocument": "boolean",
+        "companyTaxIdMasked": "string",
+        "isOverdue": "boolean",
+        "isDueSoon": "boolean",
+        "availableTransitions": "ObligationStatus[] from backend",
+        "submitBlockedReason": "string | null",
+        "version": "number"
+      },
+      "ObligationDetail": "ObligationListItem plus document: DocumentMetadata | null and auditHistory: AuditEvent[]",
+      "DocumentMetadata": {
+        "id": "string",
+        "fileName": "string",
+        "contentType": "string",
+        "sizeBytes": "number",
+        "storageKey": "string",
+        "uploadedAt": "ISO datetime string",
+        "uploadedBy": "string"
+      },
+      "AuditEvent": {
+        "id": "string",
+        "fromStatus": "ObligationStatus",
+        "toStatus": "ObligationStatus",
+        "changedAt": "ISO datetime string",
+        "changedBy": "string",
+        "obligationVersion": "number",
+        "reason": "string | null"
+      },
+      "ErrorResponse": {
+        "code": "KnownApiErrorCode | string",
+        "message": "string",
+        "details": "Record<string, unknown>"
+      }
+    },
+    "form_contracts": {
+      "create": {
+        "fields": [
+          "type",
+          "title",
+          "description",
+          "dueDate",
+          "owner",
+          "requiresDocument",
+          "companyTaxId"
+        ],
+        "forbidden_fields": [
+          "status",
+          "version",
+          "expectedVersion"
+        ],
+        "success": "Redirect to detail page or render returned detail with companyTaxIdMasked."
+      },
+      "edit": {
+        "fields": [
+          "expectedVersion",
+          "type",
+          "title",
+          "description",
+          "dueDate",
+          "owner",
+          "requiresDocument",
+          "companyTaxId"
+        ],
+        "forbidden_fields": [
+          "status",
+          "version"
+        ],
+        "success": "Revalidate detail/edit data and show returned version."
+      },
+      "status_change": {
+        "fields": [
+          "targetStatus",
+          "expectedVersion",
+          "reason"
+        ],
+        "source": "targetStatus options come from backend availableTransitions only."
+      },
+      "document_metadata": {
+        "fields": [
+          "fileName",
+          "contentType",
+          "sizeBytes",
+          "storageKey",
+          "expectedVersion"
+        ],
+        "notes": [
+          "storageKey may be omitted so backend can generate it.",
+          "sizeBytes must be positive."
+        ]
+      }
+    },
+    "ui_state_models": {
+      "dashboard_filters": {
+        "status": "ObligationStatus | all",
+        "type": "ObligationType | all",
+        "due": "all | overdue | due_soon | upcoming_or_active",
+        "query": "free-text title or owner match"
+      },
+      "action_state": {
+        "status": "idle | pending | success | error | conflict",
+        "errorCode": "KnownApiErrorCode | null",
+        "fieldErrors": "Record<string, string[]>",
+        "message": "localized string"
+      },
+      "known_api_error_codes": [
+        "VALIDATION_ERROR",
+        "OBLIGATION_NOT_FOUND",
+        "INVALID_STATUS_TRANSITION",
+        "DOCUMENT_REQUIRED_FOR_SUBMISSION",
+        "OBLIGATION_VERSION_CONFLICT",
+        "INTERNAL_SERVER_ERROR"
+      ]
+    }
+  },
+  "libraries": [
+    {
+      "name": "next",
+      "purpose": "App Router, Server Components, Server Actions, routing, and build system.",
+      "decision": "Use latest stable patched Next.js available during implementation.",
+      "rationale": "The challenge requires Next.js App Router and current patched releases reduce known RSC/security risk."
+    },
+    {
+      "name": "react and react-dom",
+      "purpose": "UI runtime for Server and Client Components.",
+      "decision": "Use React version compatible with selected Next.js release.",
+      "rationale": "Avoid mismatched RSC/runtime behavior."
+    },
+    {
+      "name": "typescript",
+      "purpose": "Strict DTO, form, action, and component typing.",
+      "decision": "Enable strict mode and avoid any.",
+      "rationale": "The challenge explicitly evaluates TypeScript quality."
+    },
+    {
+      "name": "tailwindcss",
+      "purpose": "Utility styling over semantic tokens.",
+      "decision": "Use Tailwind as scaffolded by current Next.js tooling.",
+      "rationale": "Required stack and compatible with shadcn/ui."
+    },
+    {
+      "name": "shadcn/ui",
+      "purpose": "Base UI primitives for table, cards, dialogs, forms, badges, buttons, dropdowns, empty/loading/error states.",
+      "decision": "Install only needed components and compose them into feature widgets.",
+      "rationale": "shadcn is a component source foundation, not the application architecture."
+    },
+    {
+      "name": "zod",
+      "purpose": "Client/server form shape validation and action result typing.",
+      "decision": "Use only for UX validation and request shape guardrails.",
+      "rationale": "Improves form feedback without making frontend domain rules authoritative."
+    },
+    {
+      "name": "date-fns or Intl APIs",
+      "purpose": "Locale-aware date display.",
+      "decision": "Prefer Intl.DateTimeFormat first; add date-fns only if formatting needs exceed Intl.",
+      "rationale": "Avoid unnecessary dependencies for simple date display."
+    },
+    {
+      "name": "vitest and testing-library",
+      "purpose": "Unit/component tests for filtering, forms, error handling, and UI behavior.",
+      "decision": "Use lightweight frontend tests aligned with React components.",
+      "rationale": "The challenge asks for at least one frontend flow test; narrow tests are enough for this scope."
+    },
+    {
+      "name": "playwright",
+      "purpose": "End-to-end smoke flow against local frontend and backend.",
+      "decision": "Use for one critical flow if time allows after unit/component coverage.",
+      "rationale": "Verifies the integrated user path and rendered UI states."
+    }
+  ],
+  "design_system": {
+    "token_strategy": {
+      "decision": "Define semantic CSS custom properties for the approved Obsidian & Copper Ledger palette and map them into Tailwind/shadcn theme tokens.",
+      "theme_name": "Obsidian & Copper Ledger",
+      "visual_style": "Premium compliance / fintech / legal-ops dashboard. Calm, serious, expensive, structured, highly usable, with Linear-level polish, Stripe-level clarity, Vanta/Drata compliance tooling cues, and modern editorial SaaS dashboard restraint.",
+      "semantic_tokens": [
+        "background",
+        "surface",
+        "card",
+        "border",
+        "primaryText",
+        "secondaryText",
+        "accent",
+        "accentHover",
+        "danger",
+        "warning",
+        "success",
+        "muted"
+      ],
+      "palette": {
+        "dark": {
+          "background": "#11100E",
+          "surface": "#1A1713",
+          "card": "#231F19",
+          "border": "#3A3026",
+          "primaryText": "#F4EFE7",
+          "secondaryText": "#A99F91",
+          "accent": "#C46A35",
+          "accentHover": "#E07A3F"
+        },
+        "light": {
+          "background": "#F7F1E8",
+          "surface": "#FFFDF9",
+          "card": "#F0E6D8",
+          "border": "#DED0BD",
+          "primaryText": "#211B15",
+          "secondaryText": "#7B6D5F",
+          "accent": "#C46A35",
+          "accentHover": "#A9542A"
+        }
+      },
+      "status_semantic_colors": {
+        "overdue": "muted oxblood / clay red",
+        "dueSoon": "ochre / amber",
+        "done": "muted moss green",
+        "inProgress": "muted petroleum teal",
+        "submitted": "muted plum",
+        "pending": "warm gray / taupe"
+      },
+      "rationale": "The palette is fixed as product direction, while semantic token names keep components readable, themeable, and defensible."
+    },
+    "theme_modes": {
+      "supported": [
+        "light",
+        "dark"
+      ],
+      "decision": "Use CSS variable values for each theme and avoid manual dark: color overrides in component code.",
+      "rationale": "Token-based theming is easier to defend and audit than scattered color classes."
+    },
+    "shadcn_rules": [
+      "Use semantic classes such as bg-background and text-foreground instead of raw color utilities.",
+      "Use Badge for status and risk labels.",
+      "Use Alert for errors and warnings.",
+      "Use Empty for empty states.",
+      "Use Skeleton for loading states.",
+      "Use AlertDialog for destructive confirmations.",
+      "Use FieldGroup and Field for forms.",
+      "Use Select or ToggleGroup for constrained options.",
+      "Use Input for free-text name or owner query.",
+      "Use icons from the configured shadcn icon library and data-icon inside buttons."
+    ],
+    "visual_density": {
+      "decision": "Use a compact operational layout rather than marketing-style cards or hero sections.",
+      "rationale": "The app is a repeated-use compliance work surface."
+    },
+    "must_avoid": [
+      "Generic AI SaaS colors.",
+      "Blue-purple gradients.",
+      "Crypto dashboard aesthetics.",
+      "Loud neon risk colors.",
+      "Decorative visuals that reduce table scanability."
+    ]
+  },
+  "i18n": {
+    "locale_model": {
+      "locales": [
+        "en",
+        "es"
+      ],
+      "route_param": "locale",
+      "default_locale": "en",
+      "invalid_locale_behavior": "notFound or redirect to default locale."
+    },
+    "dictionary_scope": [
+      "Navigation",
+      "Dashboard KPIs",
+      "Filters",
+      "Statuses",
+      "Obligation types",
+      "Due risk labels",
+      "Form fields and helper text",
+      "Validation messages",
+      "Known API errors",
+      "Empty states",
+      "Buttons",
+      "Confirmation dialogs",
+      "Audit labels"
+    ],
+    "formatting": {
+      "dates": "Use Intl.DateTimeFormat with active locale.",
+      "numbers": "Use Intl.NumberFormat where numeric display needs localization.",
+      "enums": "Render localized labels from dictionaries, never raw enum strings as primary labels."
+    }
+  },
+  "failure_modes": [
+    {
+      "case": "Backend unavailable on dashboard read",
+      "handling": "Route error boundary or dashboard Alert shows localized retry path; KPIs are not shown as current if data failed."
+    },
+    {
+      "case": "Obligation detail not found",
+      "handling": "Localized not-found page with link back to dashboard."
+    },
+    {
+      "case": "VALIDATION_ERROR from create/edit/document form",
+      "handling": "Map details to field errors when possible and show form-level fallback."
+    },
+    {
+      "case": "DOCUMENT_REQUIRED_FOR_SUBMISSION",
+      "handling": "Show localized explanation and document metadata call to action."
+    },
+    {
+      "case": "INVALID_STATUS_TRANSITION",
+      "handling": "Show localized action error, refresh detail route, and do not keep stale transition buttons as valid."
+    },
+    {
+      "case": "OBLIGATION_VERSION_CONFLICT",
+      "handling": "Show stale-data conflict state and offer refresh before retry; do not silently resubmit with a newer version."
+    },
+    {
+      "case": "Delete succeeds",
+      "handling": "Navigate to dashboard, revalidate obligation list, and show success feedback."
+    },
+    {
+      "case": "Delete fails because record is gone",
+      "handling": "Treat as not-found recovery and return user to dashboard."
+    },
+    {
+      "case": "Locale dictionary key missing",
+      "handling": "Fail visibly in development; use safe fallback in production only if necessary."
+    },
+    {
+      "case": "Raw companyTaxId included in backend error details unexpectedly",
+      "handling": "Do not render details blindly; only render known field messages or sanitized generic copy."
+    }
+  ],
+  "testing_strategy": {
+    "unit_tests": [
+      "DTO parser or type guard rejects malformed API responses without using any.",
+      "Dashboard KPI aggregation uses status, isOverdue, and isDueSoon from API items.",
+      "Dashboard filters narrow by selected status/type/due timing and free-text title/owner query.",
+      "Status action builder renders only availableTransitions from backend response.",
+      "Known API error codes map to localized user-facing messages.",
+      "Dictionaries contain labels for every known status, obligation type, and known error code."
+    ],
+    "component_tests": [
+      "Dashboard empty state differs for no obligations vs no filter matches.",
+      "Create form does not render a workflow status field.",
+      "Edit form does not render a workflow status field and includes expectedVersion in mutation state.",
+      "Detail view displays companyTaxIdMasked and never displays companyTaxId.",
+      "Blocked submission explanation appears when submitBlockedReason is present.",
+      "Delete confirmation requires explicit confirmation before action."
+    ],
+    "integration_or_e2e_tests": [
+      "Happy path: load dashboard, create obligation, land on detail, verify masked tax id display and pending status.",
+      "Status flow: detail renders backend-provided transition, submit transition, verify updated status and audit history.",
+      "Conflict flow: mutation receiving OBLIGATION_VERSION_CONFLICT shows refresh guidance.",
+      "i18n smoke: dashboard and known status labels render in en and es routes."
+    ],
+    "accessibility_checks": [
+      "Forms have labels and validation states with aria-invalid where applicable.",
+      "Dialogs and alert dialogs have accessible titles.",
+      "Table actions are keyboard accessible.",
+      "Risk badges are accompanied by text labels, not color alone.",
+      "Loading and error states are perceivable without relying only on animation."
+    ],
+    "quality_gates": [
+      "TypeScript strict typecheck passes.",
+      "ESLint passes.",
+      "Unit/component tests pass.",
+      "At least one frontend flow test exists for the challenge-required frontend behavior.",
+      "Manual or automated browser check verifies dashboard, detail, create, edit, and error states render without layout overlap."
+    ]
+  },
+  "implementation_phases": [
+    {
+      "phase": "P1",
+      "goal": "Scaffold frontend project and base tooling under frontend/.",
+      "tasks": [
+        "Create Next.js App Router project with TypeScript, Tailwind, ESLint, src directory, and @/* alias.",
+        "Initialize shadcn/ui and install only required base components.",
+        "Apply Tailwind/shadcn font and theme fixes required by the selected versions.",
+        "Add environment example for BACKEND_API_BASE_URL and default locale."
+      ],
+      "dependencies": [],
+      "definition_of_done": [
+        "Frontend app runs locally.",
+        "Strict TypeScript is enabled.",
+        "No route implements obligation UI yet."
+      ]
+    },
+    {
+      "phase": "P2",
+      "goal": "Implement shared API, DTO, error, config, and i18n foundations.",
+      "tasks": [
+        "Create strict DTO types matching backend response/request schemas.",
+        "Create safe API client and endpoint functions.",
+        "Create normalized error model for known backend errors.",
+        "Create en/es dictionaries and enum label maps.",
+        "Create semantic token theme baseline for light/dark."
+      ],
+      "dependencies": [
+        "P1"
+      ],
+      "definition_of_done": [
+        "API functions are typed and do not use any.",
+        "Known backend error codes have localized labels.",
+        "Raw tax id is not part of read DTOs."
+      ]
+    },
+    {
+      "phase": "P3",
+      "goal": "Build dashboard route and widgets.",
+      "tasks": [
+        "Create localized dashboard route.",
+        "Fetch obligations on the server.",
+        "Render KPIs from backend-provided fields.",
+        "Render filter controls and due-date ordered table.",
+        "Render loading, empty, and error states."
+      ],
+      "dependencies": [
+        "P2"
+      ],
+      "definition_of_done": [
+        "Dashboard satisfies AC01 through AC05.",
+        "Filters do not recalculate backend domain state.",
+        "Dashboard works in en and es."
+      ]
+    },
+    {
+      "phase": "P4",
+      "goal": "Build obligation detail route and read-only panels.",
+      "tasks": [
+        "Create detail route and localized not-found handling.",
+        "Render safe fields, masked tax id, risk badges, document metadata, and audit history.",
+        "Render backend-provided available transitions and blocked submission explanation."
+      ],
+      "dependencies": [
+        "P2"
+      ],
+      "definition_of_done": [
+        "Detail satisfies AC06 through AC10.",
+        "No raw tax id display exists.",
+        "Audit history is read-only."
+      ]
+    },
+    {
+      "phase": "P5",
+      "goal": "Build create and edit flows.",
+      "tasks": [
+        "Create shared obligation form model.",
+        "Implement create Server Action and create route.",
+        "Implement edit Server Action and edit route.",
+        "Map validation errors to localized field/form feedback."
+      ],
+      "dependencies": [
+        "P2",
+        "P4"
+      ],
+      "definition_of_done": [
+        "Create satisfies AC11 through AC13.",
+        "Edit satisfies AC14 and AC15.",
+        "No status selector appears in create or edit forms."
+      ]
+    },
+    {
+      "phase": "P6",
+      "goal": "Build document metadata, status transition, and delete mutations.",
+      "tasks": [
+        "Implement document attach/remove actions and UI.",
+        "Implement status transition actions driven by availableTransitions.",
+        "Implement guarded delete confirmation and recovery.",
+        "Handle conflict and domain errors consistently."
+      ],
+      "dependencies": [
+        "P2",
+        "P4"
+      ],
+      "definition_of_done": [
+        "Document metadata satisfies AC16 and AC17.",
+        "Status transition satisfies AC18 through AC20.",
+        "Delete satisfies AC22."
+      ]
+    },
+    {
+      "phase": "P7",
+      "goal": "Complete quality pass, tests, and README frontend instructions.",
+      "tasks": [
+        "Add unit and component tests for critical frontend behavior.",
+        "Add at least one frontend flow test.",
+        "Verify en/es labels and light/dark rendering.",
+        "Run typecheck, lint, tests, and browser smoke checks.",
+        "Document frontend setup and run commands in README."
+      ],
+      "dependencies": [
+        "P3",
+        "P4",
+        "P5",
+        "P6"
+      ],
+      "definition_of_done": [
+        "Challenge-required frontend test coverage exists.",
+        "Quality gates pass.",
+        "README explains how to run backend plus frontend."
+      ]
+    }
+  ],
+  "traceability": {
+    "AC01": [
+      "dashboard_page",
+      "kpi_derivation",
+      "P3"
+    ],
+    "AC02": [
+      "data_flow.kpi_derivation",
+      "unit_tests dashboard KPI aggregation",
+      "P3"
+    ],
+    "AC03": [
+      "dashboard_filters state model",
+      "P3"
+    ],
+    "AC04": [
+      "loading_and_errors",
+      "P3"
+    ],
+    "AC05": [
+      "failure_modes backend unavailable",
+      "P3"
+    ],
+    "AC06": [
+      "getObligation contract",
+      "detail_page",
+      "P4"
+    ],
+    "AC07": [
+      "security_and_privacy.tax_id",
+      "component_tests masked tax id",
+      "P4"
+    ],
+    "AC08": [
+      "AuditEvent DTO",
+      "P4"
+    ],
+    "AC09": [
+      "availableTransitions DTO",
+      "server_client_boundaries",
+      "P4",
+      "P6"
+    ],
+    "AC10": [
+      "submitBlockedReason DTO",
+      "failure_modes DOCUMENT_REQUIRED_FOR_SUBMISSION",
+      "P4"
+    ],
+    "AC11": [
+      "create form contract",
+      "P5"
+    ],
+    "AC12": [
+      "create forbidden_fields",
+      "component_tests create form",
+      "P5"
+    ],
+    "AC13": [
+      "VALIDATION_ERROR handling",
+      "P5"
+    ],
+    "AC14": [
+      "edit form contract",
+      "P5"
+    ],
+    "AC15": [
+      "edit forbidden_fields",
+      "P5"
+    ],
+    "AC16": [
+      "document_metadata form contract",
+      "P6"
+    ],
+    "AC17": [
+      "deleteDocument contract",
+      "P6"
+    ],
+    "AC18": [
+      "changeStatus contract",
+      "P6"
+    ],
+    "AC19": [
+      "known_api_error_codes",
+      "failure_modes domain errors",
+      "P6"
+    ],
+    "AC20": [
+      "OBLIGATION_VERSION_CONFLICT handling",
+      "P6"
+    ],
+    "AC21": [
+      "routing.not_found",
+      "failure_modes obligation detail not found",
+      "P4"
+    ],
+    "AC22": [
+      "deleteObligation contract",
+      "P6"
+    ],
+    "AC23": [
+      "i18n",
+      "P2",
+      "P7"
+    ],
+    "AC24": [
+      "design_system",
+      "P2",
+      "P7"
+    ]
+  },
+  "approval_gate": {
+    "required_user_action": "Approve this technical spec before creating todos.json.",
+    "next_step_after_approval": "Create specs/features/frontend-obligations/todos.json with executable tasks, dependencies, outputs, exit criteria, and parallelization batches.",
+    "must_not_do_before_approval": [
+      "Do not create the frontend application folder.",
+      "Do not scaffold Next.js.",
+      "Do not install npm dependencies.",
+      "Do not implement UI components.",
+      "Do not create todos.json."
+    ]
+  }
+}
