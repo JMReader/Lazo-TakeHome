@@ -11,7 +11,7 @@ ALLOWED_TRANSITIONS: dict[ObligationStatus, list[ObligationStatus]] = {
 
 def validate_transition(current_status: ObligationStatus, target_status: ObligationStatus) -> None:
     """Ensure a requested status change follows the allowed workflow."""
-    if target_status not in ALLOWED_TRANSITIONS[current_status]:
+    if target_status not in ALLOWED_TRANSITIONS.get(current_status, []):
         raise InvalidStatusTransition(
             f"Cannot transition obligation from {current_status} to {target_status}."
         )
