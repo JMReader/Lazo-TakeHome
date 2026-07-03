@@ -58,12 +58,13 @@ The production Vercel project deploys this repository from `main`.
 Vercel loads the FastAPI app through:
 
 ```txt
-backend.server:app
+api/index.py
 ```
 
-The root `pyproject.toml` declares the Python dependencies and the
-`[tool.vercel]` entrypoint so Vercel prepares a Python Function instead of an
-empty deployment. `vercel.json` only configures the resolved function duration.
+The root `requirements.txt` declares the Python dependencies. `vercel.json`
+forces the `@vercel/python` builder for `api/index.py` and routes all requests to
+the FastAPI app, preventing empty deployments when Vercel cannot infer the
+backend from the nested `backend/` folder.
 
 Required production environment variables in Vercel:
 
