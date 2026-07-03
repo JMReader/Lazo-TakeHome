@@ -1,0 +1,613 @@
+{
+  "meta": {
+    "feature_id": "frontend-obligations",
+    "document_type": "functional_specification",
+    "status": "approved",
+    "created_at": "2026-07-03",
+    "approved_at": "2026-07-03",
+    "source_inputs": [
+      "Copia de Prueba tecnica - Fullstack Engineer.md",
+      "README.md",
+      "backend/docs/api_review.md",
+      "backend/docs/openapi.json",
+      "specs/features/backend-obligations/functional-spec.json"
+    ]
+  },
+  "context_scan": {
+    "repository_state": "The repository already contains a working backend, backend specs, tests, and a versioned OpenAPI snapshot. No frontend scaffold exists yet.",
+    "detected_frontend_stack": "No package.json, Next.js app directory, src directory, pages directory, Tailwind config, components.json, design token file, or frontend test setup is currently present.",
+    "detected_backend_contract": [
+      "GET /api/obligations returns compact dashboard list items.",
+      "POST /api/obligations creates an obligation and returns full detail.",
+      "GET /api/obligations/{id} returns full detail with document metadata and audit history.",
+      "PATCH /api/obligations/{id} updates editable non-status fields with expectedVersion.",
+      "PATCH /api/obligations/{id}/status changes workflow status with expectedVersion.",
+      "PUT /api/obligations/{id}/document attaches or replaces document metadata with expectedVersion.",
+      "DELETE /api/obligations/{id}/document removes document metadata with expectedVersion.",
+      "DELETE /api/obligations/{id} deletes the obligation."
+    ],
+    "runtime_constraints": [
+      "No frontend application scaffold exists yet.",
+      "The frontend must consume the backend API contract and must not become the source of truth for domain rules.",
+      "The backend returns masked company tax id values on reads and never returns raw companyTaxId.",
+      "All mutations that change an existing obligation require expectedVersion."
+    ],
+    "feature_type": "frontend-heavy",
+    "likely_affected_product_areas": [
+      "Obligations dashboard",
+      "Obligation detail view",
+      "Create obligation flow",
+      "Edit obligation flow",
+      "Status transition flow",
+      "Document metadata flow",
+      "Internationalized user-facing copy",
+      "API loading, empty, error, and conflict states"
+    ],
+    "test_setup_available": "No frontend test setup exists yet. Backend tests and API contract snapshots exist."
+  },
+  "scope": {
+    "product_goal": "Provide a professional compliance obligations frontend that lets founders or internal teams review, create, edit, and progress obligations while clearly showing risk, ownership, due dates, document requirements, and audit history from the backend.",
+    "in_scope": [
+      "Dashboard with obligation KPIs: total obligations, count by status, overdue count, and due-soon count.",
+      "Dashboard filters for status, obligation type, due timing, and free-text name or owner matching.",
+      "Dashboard list or table ordered by dueDate.",
+      "Visual emphasis for overdue and due-soon obligations using semantic risk hierarchy.",
+      "Dashboard loading, empty, and API error states.",
+      "Navigation from dashboard to create, edit, and detail flows.",
+      "Guarded delete action from the UI with clear confirmation and post-delete recovery.",
+      "Obligation detail view with all displayable fields returned by the backend.",
+      "Always display company tax id using companyTaxIdMasked only.",
+      "Display current status, due date risk, document requirement, document metadata when present, and audit history.",
+      "Display available status transitions exactly from backend-provided availableTransitions.",
+      "Show blocked submission state and explanation when backend provides submitBlockedReason.",
+      "Allow status transition requests with clear pending, success, error, and conflict feedback.",
+      "Create obligation form with basic user-experience validation and clear API validation errors.",
+      "Edit obligation form reusing the same user-facing field model where appropriate.",
+      "Respect backend editability constraints and never expose workflow status as a generic editable field.",
+      "Support document metadata input when an obligation requires or needs supporting documentation.",
+      "Support English and Spanish labels, statuses, obligation types, errors, empty states, buttons, and help text.",
+      "Use semantic design language compatible with light and dark mode.",
+      "Render consistent loading, empty, validation, domain error, not-found, and version conflict states."
+    ],
+    "out_of_scope": [
+      "Changing backend domain rules or API behavior.",
+      "Recalculating overdue or due-soon on the frontend as domain truth.",
+      "Reconstructing the status transition state machine on the frontend.",
+      "Real authentication and authorization.",
+      "Real binary file upload or file preview.",
+      "Notification scheduling or reminder delivery.",
+      "Advanced server-side search, saved filters, or pagination unless later required."
+    ]
+  },
+  "domain_language": {
+    "obligation": "A compliance task with type, title, description, status, due date, owner, document requirement, masked company tax id, version, and optional document metadata.",
+    "dashboard": "The primary work surface for scanning obligations, due risk, owner accountability, and next actions.",
+    "detail_view": "The accountability record for one obligation, including displayable fields, available transitions, document state, and status audit history.",
+    "available_transition": "A backend-provided target status that the current user interface may offer as an action.",
+    "blocked_transition": "A workflow action that cannot currently be performed and must be explained using backend-provided blocking information when available.",
+    "expected_version": "The obligation version last read by the frontend and sent with mutation requests to prevent stale writes.",
+    "api_validation_error": "A backend response telling the user that submitted input is invalid or violates a rule.",
+    "version_conflict": "A backend response telling the user that the obligation changed after the current screen loaded and must be refreshed before retrying.",
+      "document_metadata": "User-entered file metadata that represents an attached document without uploading binary content."
+  },
+  "user_roles": [
+    {
+      "id": "accountable_user",
+      "name": "Accountable compliance user",
+      "description": "A founder or internal team member responsible for reviewing, creating, updating, and progressing compliance obligations."
+    }
+  ],
+  "use_cases": [
+    {
+      "id": "UC01",
+      "name": "Review dashboard risk and workload",
+      "primary_actor": "accountable_user",
+      "description": "The user opens the obligations dashboard and sees overall workload, status distribution, overdue obligations, due-soon obligations, and a due-date-ordered table.",
+      "success_outcome": "The user can quickly identify which obligations need attention without reading every detail page."
+    },
+    {
+      "id": "UC02",
+      "name": "Filter obligations",
+      "primary_actor": "accountable_user",
+      "description": "The user narrows the obligation list by selecting structured filters such as status, type, and due timing, or by entering free text for name or owner matching.",
+      "success_outcome": "The dashboard shows only matching obligations while preserving clear empty and error states."
+    },
+    {
+      "id": "UC03",
+      "name": "Open obligation detail",
+      "primary_actor": "accountable_user",
+      "description": "The user opens a single obligation to inspect its fields, masked tax id, document state, current status, available transitions, and audit history.",
+      "success_outcome": "The user can understand the obligation's current accountability state and prior workflow changes."
+    },
+    {
+      "id": "UC04",
+      "name": "Create obligation",
+      "primary_actor": "accountable_user",
+      "description": "The user creates a new obligation by entering required obligation details, due date, owner, document requirement, and company tax id.",
+      "success_outcome": "The backend creates the obligation and the UI shows the returned safe detail data."
+    },
+    {
+      "id": "UC05",
+      "name": "Edit obligation fields",
+      "primary_actor": "accountable_user",
+      "description": "The user updates editable descriptive fields for an existing obligation.",
+      "success_outcome": "The backend accepts the update using expectedVersion and the UI refreshes with the returned detail."
+    },
+    {
+      "id": "UC06",
+      "name": "Attach or replace document metadata",
+      "primary_actor": "accountable_user",
+      "description": "The user records document metadata for an obligation that requires supporting documentation.",
+      "success_outcome": "The obligation detail reflects that a document exists and status actions are updated from the backend response."
+    },
+    {
+      "id": "UC07",
+      "name": "Remove document metadata",
+      "primary_actor": "accountable_user",
+      "description": "The user removes existing document metadata from an obligation.",
+      "success_outcome": "The obligation detail reflects the removed document and any blocked submission state returned by the backend."
+    },
+    {
+      "id": "UC08",
+      "name": "Change obligation status",
+      "primary_actor": "accountable_user",
+      "description": "The user chooses one of the backend-provided available transitions and submits the status change with the current expectedVersion.",
+      "success_outcome": "The UI shows the updated status, version, available transitions, and audit history returned by the backend."
+    },
+    {
+      "id": "UC09",
+      "name": "Understand blocked submission",
+      "primary_actor": "accountable_user",
+      "description": "The user views an in-progress obligation that requires a document but has no attached document metadata.",
+      "success_outcome": "The UI clearly explains why submission is unavailable and guides the user toward document metadata attachment without pretending the frontend owns the rule."
+    },
+    {
+      "id": "UC10",
+      "name": "Recover from stale data",
+      "primary_actor": "accountable_user",
+      "description": "The user attempts a mutation after another request has already changed the obligation version.",
+      "success_outcome": "The UI shows a conflict message, prevents silent overwrite, and offers a refresh path."
+    },
+    {
+      "id": "UC11",
+      "name": "Use the application in English or Spanish",
+      "primary_actor": "accountable_user",
+      "description": "The user views the product in either supported locale.",
+      "success_outcome": "Core labels, statuses, types, errors, actions, empty states, and help text are presented in the selected language."
+    }
+  ],
+  "business_rules": [
+    {
+      "id": "BR01",
+      "name": "Backend is domain source of truth",
+      "rule": "The frontend must display and submit data through the backend API and must not define critical compliance rules as authoritative behavior."
+    },
+    {
+      "id": "BR02",
+      "name": "Transitions come from backend",
+      "rule": "The frontend may only present status transition actions based on availableTransitions returned by the backend."
+    },
+    {
+      "id": "BR03",
+      "name": "Blocked submission explanation",
+      "rule": "When submitBlockedReason is present, the UI must explain the blocked submission state using that backend-provided reason."
+    },
+    {
+      "id": "BR04",
+      "name": "No frontend overdue authority",
+      "rule": "The frontend must use backend-provided isOverdue and isDueSoon fields for compliance risk indicators."
+    },
+    {
+      "id": "BR05",
+      "name": "Tax id display is masked only",
+      "rule": "The frontend must never display, log, persist locally, or echo raw companyTaxId after submission; read screens use companyTaxIdMasked only."
+    },
+    {
+      "id": "BR06",
+      "name": "Versioned mutations",
+      "rule": "Any mutation of an existing obligation must use the latest backend-provided version as expectedVersion."
+    },
+    {
+      "id": "BR07",
+      "name": "Conflict prevents overwrite",
+      "rule": "A version conflict must be shown as stale data and must not be presented as a generic failure or retried silently."
+    },
+    {
+      "id": "BR08",
+      "name": "Generic edit cannot change workflow status",
+      "rule": "The edit form must not expose status as a normal editable field; workflow status changes only occur through transition actions."
+    },
+    {
+      "id": "BR09",
+      "name": "Create status default",
+      "rule": "The create flow must not ask the user to choose an initial workflow status because the backend creates obligations as pending."
+    },
+    {
+      "id": "BR10",
+      "name": "Basic UX validation only",
+      "rule": "The frontend may validate required fields, date format, numeric document size, and obvious empty values for user experience, but backend validation remains authoritative."
+    },
+    {
+      "id": "BR11",
+      "name": "Document metadata entry",
+      "rule": "The UI must represent document attachment as metadata entry, not real binary upload, unless scope changes later."
+    },
+    {
+      "id": "BR12",
+      "name": "Audit history is read-only",
+      "rule": "The frontend displays audit history from the backend and does not allow editing or deleting audit events."
+    },
+    {
+      "id": "BR13",
+      "name": "Internationalized domain labels",
+      "rule": "User-facing labels for statuses, obligation types, errors, empty states, and actions must be localizable in English and Spanish."
+    },
+    {
+      "id": "BR14",
+      "name": "Risk hierarchy",
+      "rule": "Overdue obligations must be visually stronger than due-soon obligations, and completed or submitted obligations must not be styled as active risk solely because of their due dates."
+    }
+  ],
+  "ux_behavior_and_interaction_expectations": [
+    "The default dashboard emphasizes scanability: KPIs first, filters second, due-date-ordered obligations third.",
+    "Overdue and due-soon states are visible in both dashboard and detail views using semantic status treatment, not raw colors.",
+    "Empty states explain whether there are no obligations at all or no obligations matching current filters.",
+    "API errors use stable backend error codes when available and provide actionable next steps.",
+    "Validation errors appear near the relevant field where possible and also remain understandable at form level.",
+    "Destructive actions such as delete or document removal require clear confirmation.",
+    "Status transition buttons show pending state while the mutation is in flight and prevent duplicate submissions.",
+    "After a successful create, edit, document, or transition mutation, the UI uses the returned obligation detail as the refreshed source of display data.",
+    "When a version conflict occurs, the UI explains that the record changed elsewhere and offers a refresh action.",
+    "The detail view makes audit history easy to scan chronologically and does not mix audit records with editable form fields.",
+    "The create and edit forms clearly distinguish required fields from optional description and document metadata.",
+    "The UI copy should feel precise, calm, and accountable, suitable for compliance or fintech operations."
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC01",
+      "title": "Dashboard renders obligation summary",
+      "given": "The backend returns a list of obligations with status, isOverdue, isDueSoon, dueDate, owner, and type fields.",
+      "when": "The user opens the dashboard.",
+      "then": "The UI shows total obligations, count by status, overdue count, due-soon count, and a due-date-ordered obligation list or table."
+    },
+    {
+      "id": "AC02",
+      "title": "Dashboard uses backend risk flags",
+      "given": "The backend returns obligations with isOverdue and isDueSoon values.",
+      "when": "The dashboard highlights risk.",
+      "then": "The UI uses those returned booleans and does not calculate its own authoritative overdue or due-soon domain state."
+    },
+    {
+      "id": "AC03",
+      "title": "Dashboard filtering",
+      "given": "The dashboard has loaded obligations.",
+      "when": "The user selects status, type, or due timing filters, or enters free text for name or owner matching.",
+      "then": "The list updates to show matching obligations and displays a filter-specific empty state when no obligations match."
+    },
+    {
+      "id": "AC04",
+      "title": "Dashboard loading state",
+      "given": "The obligations request is pending.",
+      "when": "The dashboard is rendered.",
+      "then": "The UI shows a loading state that preserves the expected dashboard structure."
+    },
+    {
+      "id": "AC05",
+      "title": "Dashboard API error state",
+      "given": "The obligations list request fails.",
+      "when": "The dashboard is rendered.",
+      "then": "The UI shows a clear error state with a retry path and does not show misleading stale KPIs as current data."
+    },
+    {
+      "id": "AC06",
+      "title": "Detail displays safe fields",
+      "given": "The backend returns an obligation detail response.",
+      "when": "The user opens the detail view.",
+      "then": "The UI displays title, description, type, status, dueDate, owner, requiresDocument, hasDocument, companyTaxIdMasked, document metadata when present, availableTransitions, submitBlockedReason, version, and auditHistory."
+    },
+    {
+      "id": "AC07",
+      "title": "Raw tax id is never displayed on reads",
+      "given": "The user views dashboard or obligation detail.",
+      "when": "Tax id information is displayed.",
+      "then": "Only companyTaxIdMasked appears and no raw companyTaxId is shown."
+    },
+    {
+      "id": "AC08",
+      "title": "Detail shows audit history",
+      "given": "The backend returns auditHistory with one or more status changes.",
+      "when": "The detail view is rendered.",
+      "then": "The UI shows each audit event with from status, to status, changed time, changed by, resulting obligation version, and optional reason."
+    },
+    {
+      "id": "AC09",
+      "title": "Available transitions are backend-driven",
+      "given": "The backend returns availableTransitions for an obligation.",
+      "when": "The detail view renders status actions.",
+      "then": "The UI renders actions from availableTransitions and does not offer target statuses that are not present in the response."
+    },
+    {
+      "id": "AC10",
+      "title": "Blocked submission is explained",
+      "given": "The backend returns submitBlockedReason for an obligation.",
+      "when": "The detail view renders status actions.",
+      "then": "The UI shows that submission is unavailable and explains the backend-provided reason in the current locale."
+    },
+    {
+      "id": "AC11",
+      "title": "Create obligation success",
+      "given": "The user enters valid required fields including companyTaxId.",
+      "when": "The user submits the create form and the backend succeeds.",
+      "then": "The UI shows the returned obligation detail or navigates to it, using masked tax id from the response."
+    },
+    {
+      "id": "AC12",
+      "title": "Create form avoids status selection",
+      "given": "The user opens the create form.",
+      "when": "The form is rendered.",
+      "then": "The form does not include a workflow status selector."
+    },
+    {
+      "id": "AC13",
+      "title": "Create validation feedback",
+      "given": "The user submits the create form with missing required fields or invalid obvious input.",
+      "when": "The frontend can identify the issue before submission or the backend returns VALIDATION_ERROR.",
+      "then": "The UI shows localized validation feedback without treating frontend validation as authoritative domain logic."
+    },
+    {
+      "id": "AC14",
+      "title": "Edit obligation success",
+      "given": "The user edits an existing obligation using the latest version displayed by the backend.",
+      "when": "The user submits editable fields and the backend succeeds.",
+      "then": "The UI refreshes from the returned obligation detail and displays the updated version."
+    },
+    {
+      "id": "AC15",
+      "title": "Edit form excludes generic status change",
+      "given": "The user opens the edit form.",
+      "when": "The form is rendered.",
+      "then": "The workflow status is not editable through the generic edit form."
+    },
+    {
+      "id": "AC16",
+      "title": "Attach document metadata",
+      "given": "The user is viewing an obligation detail with a current version.",
+      "when": "The user submits valid document metadata and the backend succeeds.",
+      "then": "The UI displays the returned document metadata, updated version, and updated availableTransitions or submitBlockedReason."
+    },
+    {
+      "id": "AC17",
+      "title": "Remove document metadata",
+      "given": "An obligation has document metadata.",
+      "when": "The user confirms removal and the backend succeeds.",
+      "then": "The UI displays the returned detail without document metadata and updates any blocked submission explanation from the backend."
+    },
+    {
+      "id": "AC18",
+      "title": "Status transition success",
+      "given": "The detail view displays one or more availableTransitions and a current version.",
+      "when": "The user submits one transition and the backend succeeds.",
+      "then": "The UI displays the returned status, version, availableTransitions, submitBlockedReason, and auditHistory."
+    },
+    {
+      "id": "AC19",
+      "title": "Domain error feedback",
+      "given": "The backend rejects a mutation with INVALID_STATUS_TRANSITION or DOCUMENT_REQUIRED_FOR_SUBMISSION.",
+      "when": "The UI receives the error.",
+      "then": "The UI displays a localized, actionable message and does not pretend the mutation succeeded."
+    },
+    {
+      "id": "AC20",
+      "title": "Version conflict feedback",
+      "given": "The backend rejects a mutation with OBLIGATION_VERSION_CONFLICT.",
+      "when": "The UI receives the error.",
+      "then": "The UI explains that the obligation changed elsewhere and offers a refresh path before retrying."
+    },
+    {
+      "id": "AC21",
+      "title": "Not found feedback",
+      "given": "The user opens an obligation URL that no longer exists.",
+      "when": "The backend returns OBLIGATION_NOT_FOUND or a 404 response.",
+      "then": "The UI shows a localized not-found state with a path back to the dashboard."
+    },
+    {
+      "id": "AC22",
+      "title": "Delete obligation confirmation",
+      "given": "The user initiates obligation deletion.",
+      "when": "The delete action is requested.",
+      "then": "The UI asks for confirmation before calling the backend and returns the user to a coherent dashboard state after success."
+    },
+    {
+      "id": "AC23",
+      "title": "English and Spanish localization",
+      "given": "The app is viewed in English or Spanish.",
+      "when": "The user sees labels, statuses, obligation types, buttons, errors, help text, and empty states.",
+      "then": "The text is shown in the selected locale without exposing raw enum values as the primary user-facing copy."
+    },
+    {
+      "id": "AC24",
+      "title": "Light and dark semantic design support",
+      "given": "The user views the app in light or dark mode.",
+      "when": "Dashboard, detail, forms, dialogs, and states are displayed.",
+      "then": "The UI remains readable and uses the approved Obsidian & Copper Ledger palette through semantic color roles."
+    }
+  ],
+  "api_error_expectations": [
+    {
+      "code": "VALIDATION_ERROR",
+      "user_meaning": "The submitted data needs correction.",
+      "expected_ui_response": "Show field-level or form-level validation feedback using localized copy."
+    },
+    {
+      "code": "OBLIGATION_NOT_FOUND",
+      "user_meaning": "The obligation does not exist or is no longer available.",
+      "expected_ui_response": "Show a not-found state and a route back to the dashboard."
+    },
+    {
+      "code": "INVALID_STATUS_TRANSITION",
+      "user_meaning": "The requested status change is not valid for the current obligation state.",
+      "expected_ui_response": "Show an actionable status-change error and refresh available actions when appropriate."
+    },
+    {
+      "code": "DOCUMENT_REQUIRED_FOR_SUBMISSION",
+      "user_meaning": "This obligation cannot be submitted until document metadata exists.",
+      "expected_ui_response": "Explain the missing document requirement and guide the user to attach document metadata."
+    },
+    {
+      "code": "OBLIGATION_VERSION_CONFLICT",
+      "user_meaning": "The record changed after the page loaded.",
+      "expected_ui_response": "Show stale-data conflict feedback and offer refresh before retry."
+    },
+    {
+      "code": "INTERNAL_SERVER_ERROR",
+      "user_meaning": "The system failed unexpectedly.",
+      "expected_ui_response": "Show a generic safe error message with retry path, without exposing technical or sensitive details."
+    }
+  ],
+  "i18n_requirements": {
+    "locales": [
+      "en",
+      "es"
+    ],
+    "must_translate": [
+      "Navigation labels",
+      "Dashboard KPI labels",
+      "Filter labels and options",
+      "Obligation statuses",
+      "Obligation types",
+      "Due risk labels",
+      "Form labels",
+      "Form helper text",
+      "Validation messages",
+      "API error messages",
+      "Empty states",
+      "Loading state copy where visible",
+      "Button text",
+      "Confirmation dialog copy",
+      "Audit history labels"
+    ],
+    "status_labels": [
+      "pending",
+      "in_progress",
+      "submitted",
+      "done"
+    ],
+    "type_labels": [
+      "annual_report",
+      "franchise_tax",
+      "boi_report",
+      "registered_agent_renewal"
+    ],
+    "error_labels": [
+      "VALIDATION_ERROR",
+      "OBLIGATION_NOT_FOUND",
+      "INVALID_STATUS_TRANSITION",
+      "DOCUMENT_REQUIRED_FOR_SUBMISSION",
+      "OBLIGATION_VERSION_CONFLICT",
+      "INTERNAL_SERVER_ERROR"
+    ]
+  },
+  "visual_design_requirements": {
+    "tone": "Premium compliance, fintech, and legal-ops dashboard: calm, serious, expensive, structured, highly usable, precise, sober, trustworthy, and optimized for scanning risk.",
+    "visual_style_references": [
+      "Linear-level polish",
+      "Stripe-level clarity",
+      "Vanta and Drata compliance tooling",
+      "Modern editorial SaaS dashboards"
+    ],
+    "theme_name": "Obsidian & Copper Ledger",
+    "semantic_tokens": [
+      "background",
+      "surface",
+      "card",
+      "border",
+      "primaryText",
+      "secondaryText",
+      "accent",
+      "accentHover",
+      "danger",
+      "warning",
+      "success",
+      "muted"
+    ],
+    "theme_support": [
+      "light",
+      "dark"
+    ],
+    "palette": {
+      "dark": {
+        "background": "#11100E",
+        "surface": "#1A1713",
+        "card": "#231F19",
+        "border": "#3A3026",
+        "primaryText": "#F4EFE7",
+        "secondaryText": "#A99F91",
+        "accent": "#C46A35",
+        "accentHover": "#E07A3F"
+      },
+      "light": {
+        "background": "#F7F1E8",
+        "surface": "#FFFDF9",
+        "card": "#F0E6D8",
+        "border": "#DED0BD",
+        "primaryText": "#211B15",
+        "secondaryText": "#7B6D5F",
+        "accent": "#C46A35",
+        "accentHover": "#A9542A"
+      },
+      "status_semantics": {
+        "overdue": "muted oxblood / clay red",
+        "dueSoon": "ochre / amber",
+        "done": "muted moss green",
+        "inProgress": "muted petroleum teal",
+        "submitted": "muted plum",
+        "pending": "warm gray / taupe"
+      }
+    },
+    "risk_hierarchy": [
+      "Overdue is the highest visual risk state.",
+      "Due soon is a warning state below overdue.",
+      "Submitted and done are not active due-risk states even if dueDate is in the past, because the backend risk flags should already reflect that."
+    ],
+    "must_avoid": [
+      "Generic AI dashboard visual language.",
+      "Blue-purple gradients.",
+      "Crypto dashboard aesthetics.",
+      "Decorative visuals that reduce data scanability.",
+      "Client-only visuals that obscure backend truth."
+    ]
+  },
+  "resolved_functional_decisions": [
+    {
+      "id": "D01",
+      "decision": "Include delete from the UI.",
+      "rationale": "The backend exposes delete and CRUD is part of the challenge, so the frontend should include a guarded delete action."
+    },
+    {
+      "id": "D02",
+      "decision": "Use selection filters for general categorical fields and free-text filters for name-like fields.",
+      "rationale": "Status, obligation type, and due timing are constrained option sets. Name or owner matching should allow free text."
+    },
+    {
+      "id": "D03",
+      "decision": "Use a simple locale mechanism sufficient to demonstrate English and Spanish.",
+      "rationale": "The feature needs visible en/es support without adding authentication or user preference management."
+    },
+    {
+      "id": "D04",
+      "decision": "Create the obligation first, then attach document metadata from detail.",
+      "rationale": "This aligns with the backend endpoints and keeps each failure path clear to the user."
+    }
+  ],
+  "approval_gate": {
+    "required_user_action": "Approve this functional spec before creating technical-spec.json.",
+    "next_step_after_approval": "Create specs/features/frontend-obligations/technical-spec.json with frontend architecture, module boundaries, API contracts, state handling, i18n approach, shadcn usage, testing strategy, and implementation phases.",
+    "must_not_do_before_approval": [
+      "Do not create the frontend application folder.",
+      "Do not scaffold Next.js.",
+      "Do not install npm dependencies.",
+      "Do not implement UI components.",
+      "Do not create todos.json."
+    ]
+  }
+}

@@ -1,0 +1,476 @@
+{
+  "feature_id": "frontend-obligations",
+  "document_type": "execution_todos",
+  "status": "pending_approval",
+  "created_at": "2026-07-03",
+  "depends_on": [
+    "specs/features/frontend-obligations/functional-spec.json",
+    "specs/features/frontend-obligations/technical-spec.json"
+  ],
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Scaffold frontend Next.js app",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": false,
+      "depends_on": [],
+      "outputs": [
+        "frontend/ Next.js App Router project",
+        "Strict TypeScript configuration",
+        "Tailwind CSS setup",
+        "ESLint setup",
+        "@/* import alias",
+        "frontend/.env.example"
+      ],
+      "exit_criteria": [
+        "Frontend project exists under frontend/.",
+        "App uses src/app routing.",
+        "TypeScript strict mode is enabled.",
+        "Local dev server can start.",
+        "No obligation feature UI is implemented in this task."
+      ]
+    },
+    {
+      "id": "T02",
+      "title": "Initialize shadcn/ui and base UI primitives",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": false,
+      "depends_on": [
+        "T01"
+      ],
+      "outputs": [
+        "components.json",
+        "Required shadcn/ui source components",
+        "cn utility",
+        "Base app layout shell"
+      ],
+      "exit_criteria": [
+        "Only required shadcn components are added.",
+        "shadcn info works from frontend/.",
+        "No raw custom replacements are created for shadcn primitives that already exist.",
+        "Font and Tailwind/shadcn setup avoids circular theme font references."
+      ]
+    },
+    {
+      "id": "T03",
+      "title": "Implement Obsidian & Copper Ledger theme tokens",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": false,
+      "depends_on": [
+        "T02"
+      ],
+      "outputs": [
+        "Light and dark CSS variables",
+        "Semantic token mappings",
+        "Status/risk color tokens",
+        "Theme-safe global styles"
+      ],
+      "exit_criteria": [
+        "Dark palette uses #11100E, #1A1713, #231F19, #3A3026, #F4EFE7, #A99F91, #C46A35, and #E07A3F.",
+        "Light palette uses #F7F1E8, #FFFDF9, #F0E6D8, #DED0BD, #211B15, #7B6D5F, #C46A35, and #A9542A.",
+        "Status semantics exist for overdue, due soon, done, in progress, submitted, and pending.",
+        "No blue-purple gradients or crypto-style neon palette is introduced."
+      ]
+    },
+    {
+      "id": "T04",
+      "title": "Create typed API client and DTO contracts",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": false,
+      "depends_on": [
+        "T01"
+      ],
+      "outputs": [
+        "shared API config",
+        "Obligation DTO types",
+        "Request DTO types",
+        "Endpoint functions",
+        "Normalized API error model"
+      ],
+      "exit_criteria": [
+        "DTOs match backend/docs/openapi.json and backend/app/api/schemas.py.",
+        "No any is used.",
+        "Read DTOs do not contain raw companyTaxId.",
+        "Known backend error codes are preserved and not swallowed.",
+        "BACKEND_API_BASE_URL is read server-side."
+      ]
+    },
+    {
+      "id": "T05",
+      "title": "Create i18n dictionaries and locale routing helpers",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": true,
+      "depends_on": [
+        "T01"
+      ],
+      "outputs": [
+        "en dictionary",
+        "es dictionary",
+        "Locale validation helper",
+        "Enum label maps",
+        "Error label maps"
+      ],
+      "exit_criteria": [
+        "English and Spanish labels exist for navigation, KPIs, filters, statuses, types, errors, forms, buttons, empty states, and audit labels.",
+        "Raw enum strings are not intended as primary user-facing labels.",
+        "Invalid locale behavior is defined."
+      ]
+    },
+    {
+      "id": "T06",
+      "title": "Create route structure and shared app shell",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": false,
+      "depends_on": [
+        "T03",
+        "T05"
+      ],
+      "outputs": [
+        "Localized route group",
+        "Root redirect to default locale",
+        "Shared app shell",
+        "Localized loading/error/not-found foundations"
+      ],
+      "exit_criteria": [
+        "/ redirects to default locale.",
+        "/en and /es routes are supported.",
+        "App shell includes product navigation, locale switcher, theme toggle placeholder or implementation, and New obligation action.",
+        "Route states use localized copy."
+      ]
+    },
+    {
+      "id": "T07",
+      "title": "Implement dashboard data derivation and filters",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": true,
+      "depends_on": [
+        "T04",
+        "T05"
+      ],
+      "outputs": [
+        "Dashboard filter state model",
+        "KPI derivation helpers",
+        "Due-date sorting helper",
+        "Filter tests"
+      ],
+      "exit_criteria": [
+        "KPIs use backend-provided status, isOverdue, and isDueSoon.",
+        "No frontend date arithmetic decides compliance risk.",
+        "Status/type/due filters use constrained values.",
+        "Title/owner query uses free text.",
+        "Unit tests cover KPI and filter behavior."
+      ]
+    },
+    {
+      "id": "T08",
+      "title": "Build dashboard route and widgets",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": false,
+      "depends_on": [
+        "T06",
+        "T07"
+      ],
+      "outputs": [
+        "Dashboard page",
+        "KPI strip",
+        "Filter bar",
+        "Obligations table",
+        "Dashboard loading/empty/error states"
+      ],
+      "exit_criteria": [
+        "Dashboard satisfies AC01 through AC05.",
+        "Rows are ordered by dueDate.",
+        "Overdue and due-soon visual treatment uses backend flags and semantic tokens.",
+        "Empty state distinguishes no obligations from no filter matches.",
+        "Dashboard renders correctly in en and es."
+      ]
+    },
+    {
+      "id": "T09",
+      "title": "Build obligation detail read-only panels",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": true,
+      "depends_on": [
+        "T04",
+        "T05",
+        "T06"
+      ],
+      "outputs": [
+        "Obligation detail page",
+        "Summary panel",
+        "Document metadata panel",
+        "Audit history panel",
+        "Blocked submission explanation"
+      ],
+      "exit_criteria": [
+        "Detail satisfies AC06 through AC10 and AC21.",
+        "companyTaxIdMasked is displayed and raw companyTaxId is never displayed.",
+        "Audit history is read-only.",
+        "Available transitions are displayed from backend data only.",
+        "submitBlockedReason is localized and actionable."
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "Build create obligation flow",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": true,
+      "depends_on": [
+        "T04",
+        "T05",
+        "T06"
+      ],
+      "outputs": [
+        "Create route",
+        "Obligation form component",
+        "Create Server Action",
+        "Create validation/error state"
+      ],
+      "exit_criteria": [
+        "Create satisfies AC11 through AC13.",
+        "Create form does not expose status, version, or expectedVersion.",
+        "Basic UX validation exists for required fields and obvious invalid values.",
+        "Backend VALIDATION_ERROR is shown clearly.",
+        "Successful create navigates to or renders returned detail using masked tax id."
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "Build edit obligation flow",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": true,
+      "depends_on": [
+        "T04",
+        "T05",
+        "T06"
+      ],
+      "outputs": [
+        "Edit route",
+        "Shared form reuse",
+        "Edit Server Action",
+        "Edit validation/error state"
+      ],
+      "exit_criteria": [
+        "Edit satisfies AC14 and AC15.",
+        "Edit form includes expectedVersion but does not expose workflow status.",
+        "Backend validation and conflict errors are shown clearly.",
+        "Successful edit refreshes returned obligation version."
+      ]
+    },
+    {
+      "id": "T12",
+      "title": "Build status transition actions",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": true,
+      "depends_on": [
+        "T04",
+        "T05",
+        "T09"
+      ],
+      "outputs": [
+        "Status action component",
+        "Status transition Server Action",
+        "Pending/error/conflict UI",
+        "Action tests"
+      ],
+      "exit_criteria": [
+        "Status flow satisfies AC18 through AC20.",
+        "Only backend availableTransitions are rendered as actions.",
+        "expectedVersion is submitted.",
+        "DOCUMENT_REQUIRED_FOR_SUBMISSION, INVALID_STATUS_TRANSITION, and OBLIGATION_VERSION_CONFLICT produce distinct user feedback.",
+        "Duplicate submissions are prevented while pending."
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "Build document metadata actions",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": true,
+      "depends_on": [
+        "T04",
+        "T05",
+        "T09"
+      ],
+      "outputs": [
+        "Document metadata form",
+        "Attach document Server Action",
+        "Remove document Server Action",
+        "Document removal confirmation"
+      ],
+      "exit_criteria": [
+        "Document flow satisfies AC16 and AC17.",
+        "sizeBytes must be positive.",
+        "storageKey can be omitted.",
+        "expectedVersion is submitted for attach/remove.",
+        "Removal requires explicit confirmation."
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "Build guarded delete obligation action",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": true,
+      "depends_on": [
+        "T04",
+        "T05",
+        "T09"
+      ],
+      "outputs": [
+        "Delete confirmation UI",
+        "Delete Server Action",
+        "Post-delete navigation and feedback"
+      ],
+      "exit_criteria": [
+        "Delete satisfies AC22.",
+        "Delete requires explicit confirmation.",
+        "Successful delete returns user to a coherent dashboard state.",
+        "Not-found delete recovery is clear."
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "Add frontend tests for critical behavior",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": false,
+      "depends_on": [
+        "T08",
+        "T09",
+        "T10",
+        "T11",
+        "T12",
+        "T13",
+        "T14"
+      ],
+      "outputs": [
+        "Unit tests",
+        "Component tests",
+        "At least one frontend flow test"
+      ],
+      "exit_criteria": [
+        "Tests cover KPI/filter behavior.",
+        "Tests verify create/edit forms do not expose workflow status.",
+        "Tests verify masked tax id display only.",
+        "Tests verify availableTransitions drive status actions.",
+        "Tests verify conflict feedback.",
+        "At least one frontend flow test exists."
+      ]
+    },
+    {
+      "id": "T16",
+      "title": "Run quality pass and document frontend setup",
+      "owner_role": "frontend_engineer",
+      "status": "todo",
+      "parallelizable": false,
+      "depends_on": [
+        "T15"
+      ],
+      "outputs": [
+        "README frontend instructions",
+        "Typecheck result",
+        "Lint result",
+        "Test result",
+        "Browser smoke verification notes"
+      ],
+      "exit_criteria": [
+        "README explains how to run backend plus frontend.",
+        "TypeScript typecheck passes.",
+        "ESLint passes.",
+        "Frontend tests pass.",
+        "Browser smoke verifies dashboard, detail, create, edit, mutation, error, en/es, and light/dark states.",
+        "No unrelated files are changed."
+      ]
+    }
+  ],
+  "parallel_execution_batches": [
+    {
+      "batch": "B1",
+      "mode": "sequential",
+      "tasks": [
+        "T01",
+        "T02",
+        "T03"
+      ],
+      "reason": "Scaffold, shadcn setup, and theme tokens touch foundational files and should happen in order."
+    },
+    {
+      "batch": "B2",
+      "mode": "parallel",
+      "tasks": [
+        "T04",
+        "T05"
+      ],
+      "reason": "API contracts and i18n dictionaries are independent after scaffold exists."
+    },
+    {
+      "batch": "B3",
+      "mode": "sequential",
+      "tasks": [
+        "T06"
+      ],
+      "reason": "Route shell depends on theme and locale helpers."
+    },
+    {
+      "batch": "B4",
+      "mode": "parallel",
+      "tasks": [
+        "T07",
+        "T09",
+        "T10",
+        "T11"
+      ],
+      "reason": "Dashboard derivation, detail read UI, create flow, and edit flow can be built against shared API/i18n without writing the same files if module boundaries are respected."
+    },
+    {
+      "batch": "B5",
+      "mode": "sequential",
+      "tasks": [
+        "T08"
+      ],
+      "reason": "Dashboard route composes the filter/KPI work from T07."
+    },
+    {
+      "batch": "B6",
+      "mode": "parallel",
+      "tasks": [
+        "T12",
+        "T13",
+        "T14"
+      ],
+      "reason": "Status, document, and delete actions can be implemented independently after detail panels exist."
+    },
+    {
+      "batch": "B7",
+      "mode": "sequential",
+      "tasks": [
+        "T15",
+        "T16"
+      ],
+      "reason": "Tests and final documentation depend on implemented flows."
+    }
+  ],
+  "approval_gate": {
+    "required_user_action": "Approve this todos.json before implementation begins.",
+    "next_step_after_approval": "Create frontend/ and implement tasks according to dependency order.",
+    "must_not_do_before_approval": [
+      "Do not create the frontend application folder.",
+      "Do not scaffold Next.js.",
+      "Do not install npm dependencies.",
+      "Do not implement UI components."
+    ]
+  }
+}
