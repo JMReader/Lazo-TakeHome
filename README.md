@@ -1,14 +1,16 @@
 # Compliance Obligations Tracker
 
-Backend-first implementation for the Lazo technical challenge.
+Fullstack implementation for the Lazo technical challenge. The app tracks compliance obligations with backend-owned workflow rules, document metadata, due-risk flags, masked tax IDs, optimistic locking, and audit history.
 
-## Backend
+## Stack
 
-The backend lives in `backend/` and uses FastAPI, Pydantic v2, async SQLAlchemy, Alembic, and Supabase hosted PostgreSQL.
+- Backend: FastAPI, Pydantic v2, async SQLAlchemy, Alembic, Supabase/PostgreSQL, pytest, ruff.
+- Frontend: Next.js App Router, React, TypeScript, Tailwind CSS, shadcn-style primitives, Vitest, Testing Library.
+- Docs: versioned specs under `specs/`, generated OpenAPI at `backend/docs/openapi.json`, Postman collection at `backend/docs/postman_collection.json`.
 
-### Environment
+## Run Locally
 
-Copy `.env.example` to `.env` and fill real values:
+Create `.env` from `.env.example` and fill real values:
 
 ```txt
 SUPABASE_DATABASE_URL=postgresql+asyncpg://...
@@ -24,161 +26,113 @@ Generate a local Fernet key:
 python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
-Never commit real Supabase credentials or encryption keys.
-
-For this workspace, the Supabase schema was applied to project `LazoProject`
-(`jiutwbpoqomfjyussmmj`). The direct database host is IPv6-only here:
-
-```txt
-db.jiutwbpoqomfjyussmmj.supabase.co
-```
-
-This local machine is using Supabase Session Pooler over IPv4:
-
-```txt
-aws-1-us-west-2.pooler.supabase.com
-```
-
-Use the database password from Supabase Dashboard to complete `SUPABASE_DATABASE_URL`
-in local `.env` with user `postgres.jiutwbpoqomfjyussmmj`.
-
-### Run
+Start the backend:
 
 ```bash
 cd backend
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install -e ".[dev]"
-.venv\Scripts\python.exe -m uvicorn app.main:create_app --factory --reload
+.venv\Scripts\python.exe -m alembic upgrade head
+.venv\Scripts\python.exe -m uvicorn app.main:create_app --factory --reload --port 8001
 ```
 
-### Vercel Deploy
+Start the frontend:
 
-The production Vercel project deploys this repository from `main` with
-`backend/app` configured as the Vercel Root Directory.
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-Vercel loads the FastAPI app through:
+Open `http://localhost:3000/en` or `http://localhost:3000/es`.
+
+## Environment Notes
+
+The backend reads `.env` from the repo root or `backend/.env`. Never commit real Supabase credentials or encryption keys.
+
+For this workspace, the Supabase schema was applied to project `LazoProject` (`jiutwbpoqomfjyussmmj`). The direct database host is IPv6-only here:
 
 ```txt
-backend/app/api/index.py
+db.jiutwbpoqomfjyussmmj.supabase.co
 ```
 
-`backend/app/requirements.txt` declares the Python dependencies.
-`backend/app/vercel.json` forces the `@vercel/python` builder and routes all
-requests to the FastAPI app, preventing empty deployments when Vercel cannot
-infer the nested backend automatically.
+This local machine uses the Supabase Session Pooler over IPv4:
 
-Required production environment variables in Vercel:
+```txt
+aws-1-us-west-2.pooler.supabase.com
+```
+
+Use the database password from Supabase Dashboard to complete `SUPABASE_DATABASE_URL` with user `postgres.jiutwbpoqomfjyussmmj`.
+
+## Quality Gates
+
+Backend:
+
+```bash
+cd backend
+.venv\Scripts\python.exe -m ruff check .
+.venv\Scripts\python.exe -m ruff format --check .
+.venv\Scripts\python.exe -m pytest
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+## API Surface
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Health check. |
+| `GET` | `/api/obligations` | Compact dashboard list. |
+| `POST` | `/api/obligations` | Create an obligation as `pending`, `version=1`. |
+| `GET` | `/api/obligations/{id}` | Full detail with document metadata and audit history. |
+| `PATCH` | `/api/obligations/{id}` | Non-status update with optimistic locking. |
+| `DELETE` | `/api/obligations/{id}` | Delete an obligation and owned rows. |
+| `PATCH` | `/api/obligations/{id}/status` | Change workflow status and write one audit event on success. |
+| `PUT` | `/api/obligations/{id}/document` | Attach or replace mock document metadata. |
+| `DELETE` | `/api/obligations/{id}/document?expectedVersion=...` | Remove mock document metadata when domain invariants allow it. |
+
+When the backend is running, API docs are available at:
+
+```txt
+http://127.0.0.1:8001/docs
+http://127.0.0.1:8001/redoc
+http://127.0.0.1:8001/openapi.json
+```
+
+## Key Decisions
+
+- Backend is the source of truth for workflow transitions, overdue/due-soon flags, document-gated submission, and tax ID masking.
+- Frontend renders status actions only from `availableTransitions`; the displayed `pending -> in_progress -> submitted -> done` order is visual guidance only.
+- Obligations are created as `pending`, `version=1`; status cannot be set on create or generic update.
+- Status changes use optimistic locking with `expectedVersion` and create exactly one audit event on success.
+- Generic updates and document metadata mutations also require `expectedVersion`.
+- A required document cannot be removed from `submitted` or `done` obligations while `requiresDocument=true`.
+- `companyTaxId` is accepted on write, encrypted at rest, normalized for last-four masking, and never returned raw.
+- Document handling is metadata-only; no binary upload is included in this scope.
+
+## Deployment Notes
+
+The Vercel backend deployment uses `backend/app` as the Vercel Root Directory. FastAPI is loaded through `backend/app/api/index.py`, dependencies are declared in `backend/app/requirements.txt`, and `backend/app/vercel.json` routes requests to the Python app.
+
+Required Vercel variables:
 
 ```txt
 SUPABASE_DATABASE_URL
 PII_ENCRYPTION_KEY
 ```
 
-Optional variables with backend defaults:
+Optional variables with defaults:
 
 ```txt
 DUE_SOON_WINDOW_DAYS
 APP_ENV
 LOG_LEVEL
 ```
-
-### API Documentation
-
-When the backend is running, FastAPI exposes the API contract at:
-
-```txt
-http://127.0.0.1:8000/docs
-http://127.0.0.1:8000/redoc
-http://127.0.0.1:8000/openapi.json
-```
-
-If port `8000` is busy, use the port passed to Uvicorn. In this local setup the
-backend was verified on:
-
-```txt
-http://127.0.0.1:8001/docs
-http://127.0.0.1:8001/openapi.json
-```
-
-A generated OpenAPI snapshot is also versioned at:
-
-```txt
-backend/docs/openapi.json
-```
-
-Import the Postman collection from:
-
-```txt
-backend/docs/postman_collection.json
-```
-
-Run it sequentially. It assumes `baseUrl=http://127.0.0.1:8001` by default and
-stores `obligationId`, `version`, and `staleVersion` while it runs.
-
-### API Surface
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/health` | Health check for local/server verification. |
-| `GET` | `/api/obligations` | Compact dashboard list of obligations. |
-| `POST` | `/api/obligations` | Create an obligation as `pending`, `version=1`. |
-| `GET` | `/api/obligations/{id}` | Full obligation detail with document metadata and audit history. |
-| `PATCH` | `/api/obligations/{id}` | Generic non-status update with optimistic locking. |
-| `DELETE` | `/api/obligations/{id}` | Delete an obligation and related document/audit rows. |
-| `PATCH` | `/api/obligations/{id}/status` | Change workflow status and write one audit event on success. |
-| `PUT` | `/api/obligations/{id}/document` | Attach or replace mock document metadata. |
-| `DELETE` | `/api/obligations/{id}/document?expectedVersion=...` | Remove mock document metadata. |
-
-### Response Shape
-
-`GET /api/obligations` returns list items optimized for a dashboard:
-
-- identity and descriptive fields: `id`, `type`, `title`, `description`, `owner`
-- workflow fields: `status`, `availableTransitions`, `submitBlockedReason`
-- due fields computed by the backend: `dueDate`, `isOverdue`, `isDueSoon`
-- document summary fields: `requiresDocument`, `hasDocument`
-- sync/security fields: `version`, `companyTaxIdMasked`
-
-The list intentionally does not return `document` or `auditHistory`. Use
-`GET /api/obligations/{id}` or mutation responses when the frontend needs the
-full detail.
-
-Errors are normalized as:
-
-```json
-{
-  "code": "VALIDATION_ERROR",
-  "message": "Request validation failed.",
-  "details": {}
-}
-```
-
-Domain errors use stable codes such as `OBLIGATION_NOT_FOUND`,
-`OBLIGATION_VERSION_CONFLICT`, and `DOCUMENT_REQUIRED_FOR_SUBMISSION`.
-
-### Migrations
-
-```bash
-cd backend
-.venv\Scripts\python.exe -m alembic upgrade head
-```
-
-### Tests
-
-```bash
-cd backend
-.venv\Scripts\python.exe -m pytest
-.venv\Scripts\python.exe -m ruff check .
-.venv\Scripts\python.exe -m ruff format --check .
-```
-
-## Key Decisions
-
-- Obligations are created as `pending`, `version=1`; status cannot be set on create.
-- Workflow status changes only through `PATCH /api/obligations/{id}/status`.
-- `isOverdue` and `isDueSoon` are derived in the backend from business date and config.
-- `DUE_SOON_WINDOW_DAYS` defaults to 30.
-- `companyTaxId` is accepted on write, encrypted at rest, normalized for last4 masking, and never returned raw.
-- Status changes use optimistic locking with `expectedVersion` and create exactly one audit event on success.
-- Generic updates and document metadata mutations also require `expectedVersion`.
-- Document metadata is mock-only; no binary upload is included in this scope.
