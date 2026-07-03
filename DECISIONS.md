@@ -4,6 +4,15 @@
 
 This project implements a **Compliance Obligations Tracker** for founders and internal teams. The goal is to track company obligations, due dates, ownership, document requirements, workflow status, and auditability in a domain where small mistakes can be expensive.
 
+For easier review, I decided to deploy both applications to Vercel so the solution can be tested without local setup:
+
+- Frontend: `https://lazo-takehome.vercel.app/`
+
+- Backend: `https://lazo-backend-two.vercel.app/`
+
+
+The backend persists data in Supabase/PostgreSQL. I used Supabase as the hosted SQL database so the deployed API has a real persistent store instead of an in-memory or local-only database.
+
 The main design principle was:
 
 > Keep the backend as the single source of truth for business rules, and let the frontend present those decisions without re-implementing the domain.
@@ -31,7 +40,7 @@ I prioritized correctness, explainability, and a clean delivery over adding more
 
 The project is split into two applications:
 
-- `backend/`: FastAPI API with Pydantic, async SQLAlchemy, Alembic, and PostgreSQL.
+- `backend/`: FastAPI API with Pydantic, async SQLAlchemy, Alembic, and Supabase/PostgreSQL.
 
 - `frontend/`: Next.js App Router application with React, TypeScript strict, Server Components, Server Actions, and Tailwind.
 
@@ -46,7 +55,7 @@ flowchart LR
   API --> Service[Application Service]
   Service --> Domain[Domain Policies]
   Service --> Repo[Repository]
-  Repo --> DB[(PostgreSQL)]
+  Repo --> DB[(Supabase PostgreSQL)]
 ```
 
 The backend follows a deliberate separation:
@@ -288,11 +297,7 @@ Reason:
 
 The API is intentionally explicit instead of exposing only generic CRUD.
 
-Production links:
-
-- Frontend: `https://lazo-takehome.vercel.app/`
-
-- Backend: `https://lazo-backend-two.vercel.app/`
+API documentation links:
 
 - Swagger: `https://lazo-backend-two.vercel.app/docs`
 
