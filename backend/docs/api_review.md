@@ -15,33 +15,22 @@ variables while it runs.
 
 ## Response shape review
 
-Current responses are correct for demonstrating the backend rules, but they are
-heavier than needed for all endpoints.
+Responses are now split by use case:
 
-Keep as-is for the take-home if speed matters:
-
-- Detail responses include the full obligation, document metadata, audit history,
-  derived flags, available transitions, and version.
-- Mutation responses return the fresh detail, which makes optimistic locking and
-  frontend refresh straightforward.
-- Error responses are stable at runtime: `{ "code", "message", "details" }`.
-
-Recommended simplification before polishing the final API:
-
-- Split list and detail response models.
-- `GET /api/obligations` should return a compact list item without
-  `auditHistory` and likely without full `document` metadata.
-- Keep `auditHistory` only in `GET /api/obligations/{id}`.
-- Consider keeping `availableTransitions` only on detail unless the dashboard
-  truly renders actions inline.
-- Keep `version` everywhere a mutation can originate from.
-- Keep `companyTaxIdMasked` in both list and detail; never expose raw
-  `companyTaxId`.
+- `GET /api/obligations` returns compact list items without `document` or
+  `auditHistory`.
+- Detail and mutation responses return the full obligation, document metadata,
+  audit history, derived flags, available transitions, and version.
+- `version` is kept on list and detail because any frontend mutation must send
+  `expectedVersion`.
+- `companyTaxIdMasked` is kept on list and detail; raw `companyTaxId` is never
+  returned.
 
 ## OpenAPI mismatch to fix
 
-FastAPI currently exposes validation errors in OpenAPI as `HTTPValidationError`,
-while runtime validation errors are normalized by the exception handler to:
+FastAPI route decorators now document normalized `ErrorResponse` models for
+known `404`, `409`, and `422` responses. Runtime validation errors still use the
+same payload shape:
 
 ```json
 {
@@ -51,8 +40,8 @@ while runtime validation errors are normalized by the exception handler to:
 }
 ```
 
-For final polish, route decorators should explicitly document `ErrorResponse`
-for `404`, `409`, and `422` cases so OpenAPI matches runtime behavior.
+The versioned snapshot at `backend/docs/openapi.json` was regenerated from the
+current app.
 
 ## Code readability review
 
@@ -75,7 +64,8 @@ Main simplification target:
   - `GetObligationDetail`
   - `ListObligations`
 
-Second simplification target:
+Implemented simplification:
 
-- Separate `ObligationListItemResponse` from `ObligationDetailResponse` to reduce
-  payload size and make API intent clearer.
+- `ObligationListItemResponse` and `ObligationDetailItemResponse` are separate
+  schemas.
+- Presenters are split into compact list and full detail functions.

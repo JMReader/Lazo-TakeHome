@@ -11,7 +11,7 @@ from app.api.schemas import (
     ObligationUpdateRequest,
     StatusChangeRequest,
 )
-from app.application.presenters import present_obligation
+from app.application.presenters import present_obligation_detail, present_obligation_list_item
 from app.domain.obligations import ObligationStatus
 from app.domain.policies import validate_document_gate, validate_transition
 from app.domain.update_invariants import validate_requires_document_update
@@ -53,7 +53,7 @@ class ObligationService:
         models = await self._repo.list()
         return ObligationListResponse(
             obligations=[
-                present_obligation(
+                present_obligation_list_item(
                     model,
                     business_today=self._business_today,
                     due_soon_window_days=self._due_soon_window_days,
@@ -145,7 +145,7 @@ class ObligationService:
 
     def _detail(self, model) -> ObligationDetailResponse:
         return ObligationDetailResponse(
-            obligation=present_obligation(
+            obligation=present_obligation_detail(
                 model,
                 business_today=self._business_today,
                 due_soon_window_days=self._due_soon_window_days,

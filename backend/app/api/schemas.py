@@ -75,7 +75,7 @@ class DocumentResponse(CamelModel):
     uploaded_by: str
 
 
-class ObligationResponse(CamelModel):
+class ObligationListItemResponse(CamelModel):
     id: str
     type: ObligationType
     title: str
@@ -91,16 +91,19 @@ class ObligationResponse(CamelModel):
     available_transitions: list[str]
     submit_blocked_reason: str | None
     version: int
+
+
+class ObligationDetailItemResponse(ObligationListItemResponse):
     document: DocumentResponse | None = None
     audit_history: list[AuditEventResponse] = Field(default_factory=list)
 
 
 class ObligationDetailResponse(CamelModel):
-    obligation: ObligationResponse
+    obligation: ObligationDetailItemResponse
 
 
 class ObligationListResponse(CamelModel):
-    obligations: list[ObligationResponse]
+    obligations: list[ObligationListItemResponse]
 
 
 class ErrorResponse(CamelModel):

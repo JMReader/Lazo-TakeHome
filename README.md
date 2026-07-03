@@ -75,6 +75,56 @@ A generated OpenAPI snapshot is also versioned at:
 backend/docs/openapi.json
 ```
 
+Import the Postman collection from:
+
+```txt
+backend/docs/postman_collection.json
+```
+
+Run it sequentially. It assumes `baseUrl=http://127.0.0.1:8001` by default and
+stores `obligationId`, `version`, and `staleVersion` while it runs.
+
+### API Surface
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Health check for local/server verification. |
+| `GET` | `/api/obligations` | Compact dashboard list of obligations. |
+| `POST` | `/api/obligations` | Create an obligation as `pending`, `version=1`. |
+| `GET` | `/api/obligations/{id}` | Full obligation detail with document metadata and audit history. |
+| `PATCH` | `/api/obligations/{id}` | Generic non-status update with optimistic locking. |
+| `DELETE` | `/api/obligations/{id}` | Delete an obligation and related document/audit rows. |
+| `PATCH` | `/api/obligations/{id}/status` | Change workflow status and write one audit event on success. |
+| `PUT` | `/api/obligations/{id}/document` | Attach or replace mock document metadata. |
+| `DELETE` | `/api/obligations/{id}/document?expectedVersion=...` | Remove mock document metadata. |
+
+### Response Shape
+
+`GET /api/obligations` returns list items optimized for a dashboard:
+
+- identity and descriptive fields: `id`, `type`, `title`, `description`, `owner`
+- workflow fields: `status`, `availableTransitions`, `submitBlockedReason`
+- due fields computed by the backend: `dueDate`, `isOverdue`, `isDueSoon`
+- document summary fields: `requiresDocument`, `hasDocument`
+- sync/security fields: `version`, `companyTaxIdMasked`
+
+The list intentionally does not return `document` or `auditHistory`. Use
+`GET /api/obligations/{id}` or mutation responses when the frontend needs the
+full detail.
+
+Errors are normalized as:
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "Request validation failed.",
+  "details": {}
+}
+```
+
+Domain errors use stable codes such as `OBLIGATION_NOT_FOUND`,
+`OBLIGATION_VERSION_CONFLICT`, and `DOCUMENT_REQUIRED_FOR_SUBMISSION`.
+
 ### Migrations
 
 ```bash

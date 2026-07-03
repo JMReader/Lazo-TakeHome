@@ -43,6 +43,35 @@ async def test_create_and_read_masks_company_tax_id():
             assert "12-3456789" not in detail.text
 
 
+async def test_list_is_compact_and_detail_keeps_full_context():
+    app = create_app(
+        database_url="sqlite+aiosqlite:///:memory:",
+        pii_encryption_key=Fernet.generate_key().decode(),
+        business_today=date(2026, 7, 2),
+    )
+
+    async with app.router.lifespan_context(app):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            created = (await client.post("/api/obligations", json=create_payload())).json()[
+                "obligation"
+            ]
+
+            list_response = await client.get("/api/obligations")
+            assert list_response.status_code == 200
+            list_item = list_response.json()["obligations"][0]
+
+            assert list_item["id"] == created["id"]
+            assert list_item["version"] == created["version"]
+            assert list_item["isOverdue"] is False
+            assert list_item["isDueSoon"] is True
+            assert "document" not in list_item
+            assert "auditHistory" not in list_item
+
+            detail = (await client.get(f"/api/obligations/{created['id']}")).json()["obligation"]
+            assert "document" in detail
+            assert "auditHistory" in detail
+
+
 async def test_status_change_requires_document_and_then_creates_audit_once():
     app = create_app(
         database_url="sqlite+aiosqlite:///:memory:",

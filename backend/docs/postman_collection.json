@@ -128,7 +128,31 @@
       ]
     },
     {
-      "name": "05 Get created obligation detail",
+      "name": "05 List obligations compact after create",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/obligations"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('compact list returns 200', function () { pm.response.to.have.status(200); });",
+              "const obligations = pm.response.json().obligations;",
+              "const obligation = obligations.find(function (item) { return item.id === pm.collectionVariables.get('obligationId'); });",
+              "pm.test('created obligation is listed', function () { pm.expect(obligation).to.exist; });",
+              "pm.test('list item is compact', function () { pm.expect(obligation).to.not.have.property('document'); pm.expect(obligation).to.not.have.property('auditHistory'); });",
+              "pm.test('list keeps dashboard fields', function () { pm.expect(obligation).to.have.property('isOverdue'); pm.expect(obligation).to.have.property('isDueSoon'); pm.expect(obligation).to.have.property('version'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Get created obligation detail",
       "request": {
         "method": "GET",
         "header": [],
@@ -150,7 +174,7 @@
       ]
     },
     {
-      "name": "06 Generic update rejects status",
+      "name": "07 Generic update rejects status",
       "request": {
         "method": "PATCH",
         "header": [
@@ -179,7 +203,7 @@
       ]
     },
     {
-      "name": "07 Transition pending to in_progress",
+      "name": "08 Transition pending to in_progress",
       "request": {
         "method": "PATCH",
         "header": [
@@ -214,7 +238,7 @@
       ]
     },
     {
-      "name": "08 Stale transition returns conflict and creates no audit",
+      "name": "09 Stale transition returns conflict and creates no audit",
       "request": {
         "method": "PATCH",
         "header": [
@@ -243,7 +267,7 @@
       ]
     },
     {
-      "name": "09 Submit blocked without required document",
+      "name": "10 Submit blocked without required document",
       "request": {
         "method": "PATCH",
         "header": [
@@ -272,7 +296,7 @@
       ]
     },
     {
-      "name": "10 Attach document metadata",
+      "name": "11 Attach document metadata",
       "request": {
         "method": "PUT",
         "header": [
@@ -304,7 +328,7 @@
       ]
     },
     {
-      "name": "11 Submit succeeds with document",
+      "name": "12 Submit succeeds with document",
       "request": {
         "method": "PATCH",
         "header": [
@@ -336,7 +360,7 @@
       ]
     },
     {
-      "name": "12 Get detail after submission",
+      "name": "13 Get detail after submission",
       "request": {
         "method": "GET",
         "header": [],
@@ -358,7 +382,7 @@
       ]
     },
     {
-      "name": "13 Delete document metadata preserves audit",
+      "name": "14 Delete document metadata preserves audit",
       "request": {
         "method": "DELETE",
         "header": [],
@@ -381,7 +405,7 @@
       ]
     },
     {
-      "name": "14 Delete obligation cleanup",
+      "name": "15 Delete obligation cleanup",
       "request": {
         "method": "DELETE",
         "header": [],
@@ -401,7 +425,7 @@
       ]
     },
     {
-      "name": "15 Get deleted obligation returns not found",
+      "name": "16 Get deleted obligation returns not found",
       "request": {
         "method": "GET",
         "header": [],

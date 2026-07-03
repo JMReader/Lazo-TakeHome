@@ -1,10 +1,11 @@
 from datetime import UTC, date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api.schemas import (
+    ErrorResponse,
     ObligationCreateRequest,
     ObligationDetailResponse,
     ObligationDocumentRequest,
@@ -16,6 +17,19 @@ from app.application.use_cases import ObligationService
 from app.infrastructure.security.tax_id import TaxIdProtector
 
 router = APIRouter(prefix="/api/obligations", tags=["obligations"])
+
+VALIDATION_ERROR_RESPONSE = {
+    "model": ErrorResponse,
+    "description": "Validation or domain rule error.",
+}
+NOT_FOUND_RESPONSE = {
+    "model": ErrorResponse,
+    "description": "Obligation not found.",
+}
+CONFLICT_RESPONSE = {
+    "model": ErrorResponse,
+    "description": "Optimistic locking version conflict.",
+}
 
 
 async def get_session(request: Request):
@@ -45,7 +59,12 @@ async def list_obligations(
     return await service.list()
 
 
-@router.post("", response_model=ObligationDetailResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=ObligationDetailResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={422: VALIDATION_ERROR_RESPONSE},
+)
 async def create_obligation(
     request: ObligationCreateRequest,
     service: Annotated[ObligationService, Depends(get_service)],
@@ -53,7 +72,11 @@ async def create_obligation(
     return await service.create(request)
 
 
-@router.get("/{obligation_id}", response_model=ObligationDetailResponse)
+@router.get(
+    "/{obligation_id}",
+    response_model=ObligationDetailResponse,
+    responses={404: NOT_FOUND_RESPONSE},
+)
 async def get_obligation(
     obligation_id: str,
     service: Annotated[ObligationService, Depends(get_service)],
@@ -61,7 +84,15 @@ async def get_obligation(
     return await service.get(obligation_id)
 
 
-@router.patch("/{obligation_id}", response_model=ObligationDetailResponse)
+@router.patch(
+    "/{obligation_id}",
+    response_model=ObligationDetailResponse,
+    responses={
+        404: NOT_FOUND_RESPONSE,
+        409: CONFLICT_RESPONSE,
+        422: VALIDATION_ERROR_RESPONSE,
+    },
+)
 async def update_obligation(
     obligation_id: str,
     request: ObligationUpdateRequest,
@@ -70,7 +101,10 @@ async def update_obligation(
     return await service.update(obligation_id, request)
 
 
-@router.delete("/{obligation_id}")
+@router.delete(
+    "/{obligation_id}",
+    responses={404: NOT_FOUND_RESPONSE},
+)
 async def delete_obligation(
     obligation_id: str,
     service: Annotated[ObligationService, Depends(get_service)],
@@ -78,7 +112,15 @@ async def delete_obligation(
     return await service.delete(obligation_id)
 
 
-@router.patch("/{obligation_id}/status", response_model=ObligationDetailResponse)
+@router.patch(
+    "/{obligation_id}/status",
+    response_model=ObligationDetailResponse,
+    responses={
+        404: NOT_FOUND_RESPONSE,
+        409: CONFLICT_RESPONSE,
+        422: VALIDATION_ERROR_RESPONSE,
+    },
+)
 async def change_status(
     obligation_id: str,
     request: StatusChangeRequest,
@@ -87,7 +129,15 @@ async def change_status(
     return await service.change_status(obligation_id, request)
 
 
-@router.put("/{obligation_id}/document", response_model=ObligationDetailResponse)
+@router.put(
+    "/{obligation_id}/document",
+    response_model=ObligationDetailResponse,
+    responses={
+        404: NOT_FOUND_RESPONSE,
+        409: CONFLICT_RESPONSE,
+        422: VALIDATION_ERROR_RESPONSE,
+    },
+)
 async def attach_document(
     obligation_id: str,
     request: ObligationDocumentRequest,
@@ -96,10 +146,18 @@ async def attach_document(
     return await service.attach_document(obligation_id, request)
 
 
-@router.delete("/{obligation_id}/document", response_model=ObligationDetailResponse)
+@router.delete(
+    "/{obligation_id}/document",
+    response_model=ObligationDetailResponse,
+    responses={
+        404: NOT_FOUND_RESPONSE,
+        409: CONFLICT_RESPONSE,
+        422: VALIDATION_ERROR_RESPONSE,
+    },
+)
 async def delete_document(
     obligation_id: str,
-    expectedVersion: int,
+    expectedVersion: Annotated[int, Query(ge=1)],
     service: Annotated[ObligationService, Depends(get_service)],
 ) -> ObligationDetailResponse:
     return await service.delete_document(obligation_id, expectedVersion)
