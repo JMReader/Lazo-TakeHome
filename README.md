@@ -53,18 +53,19 @@ python -m venv .venv
 
 ### Vercel Deploy
 
-The production Vercel project deploys this repository from `main`.
+The production Vercel project deploys this repository from `main` with
+`backend/app` configured as the Vercel Root Directory.
 
 Vercel loads the FastAPI app through:
 
 ```txt
-api/index.py
+backend/app/api/index.py
 ```
 
-The root `requirements.txt` declares the Python dependencies. `vercel.json`
-forces the `@vercel/python` builder for `api/index.py` and routes all requests to
-the FastAPI app, preventing empty deployments when Vercel cannot infer the
-backend from the nested `backend/` folder.
+`backend/app/requirements.txt` declares the Python dependencies.
+`backend/app/vercel.json` forces the `@vercel/python` builder and routes all
+requests to the FastAPI app, preventing empty deployments when Vercel cannot
+infer the nested backend automatically.
 
 Required production environment variables in Vercel:
 
