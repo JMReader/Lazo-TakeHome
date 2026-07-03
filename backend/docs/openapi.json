@@ -5,9 +5,32 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/": {
+      "get": {
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Root  Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
+        "description": "Report whether the API process is reachable.",
         "operationId": "health_health_get",
         "responses": {
           "200": {
@@ -33,6 +56,7 @@
           "obligations"
         ],
         "summary": "List Obligations",
+        "description": "Return compact obligation records for dashboard-style views.",
         "operationId": "list_obligations_api_obligations_get",
         "responses": {
           "200": {
@@ -52,6 +76,7 @@
           "obligations"
         ],
         "summary": "Create Obligation",
+        "description": "Create a pending obligation and return its full detail.",
         "operationId": "create_obligation_api_obligations_post",
         "requestBody": {
           "content": {
@@ -93,6 +118,7 @@
           "obligations"
         ],
         "summary": "Get Obligation",
+        "description": "Return the full detail for a single obligation.",
         "operationId": "get_obligation_api_obligations__obligation_id__get",
         "parameters": [
           {
@@ -143,6 +169,7 @@
           "obligations"
         ],
         "summary": "Update Obligation",
+        "description": "Apply non-status obligation changes with optimistic locking.",
         "operationId": "update_obligation_api_obligations__obligation_id__patch",
         "parameters": [
           {
@@ -213,6 +240,7 @@
           "obligations"
         ],
         "summary": "Delete Obligation",
+        "description": "Delete an obligation and its owned metadata.",
         "operationId": "delete_obligation_api_obligations__obligation_id__delete",
         "parameters": [
           {
@@ -269,6 +297,7 @@
           "obligations"
         ],
         "summary": "Change Status",
+        "description": "Move an obligation through the workflow and audit the change.",
         "operationId": "change_status_api_obligations__obligation_id__status_patch",
         "parameters": [
           {
@@ -341,6 +370,7 @@
           "obligations"
         ],
         "summary": "Attach Document",
+        "description": "Attach or replace document metadata for an obligation.",
         "operationId": "attach_document_api_obligations__obligation_id__document_put",
         "parameters": [
           {
@@ -411,6 +441,7 @@
           "obligations"
         ],
         "summary": "Delete Document",
+        "description": "Remove document metadata while preserving obligation history.",
         "operationId": "delete_document_api_obligations__obligation_id__document_delete",
         "parameters": [
           {

@@ -41,6 +41,14 @@ def create_app(
     app.state.due_soon_window_days = due_soon_window_days
     app.state.business_today = today_provider(business_today)
 
+    @app.get("/")
+    async def root() -> dict[str, str]:
+        return {
+            "name": "Compliance Obligations Tracker API",
+            "health": "/health",
+            "docs": "/docs",
+        }
+
     @app.get("/health")
     async def health() -> dict[str, str]:
         """Report whether the API process is reachable."""

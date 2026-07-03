@@ -51,6 +51,35 @@ python -m venv .venv
 .venv\Scripts\python.exe -m uvicorn app.main:create_app --factory --reload
 ```
 
+### Vercel Deploy
+
+The production Vercel project deploys this repository from `main`.
+
+Vercel loads the FastAPI app through:
+
+```txt
+backend.server:app
+```
+
+The root `pyproject.toml` declares the Python dependencies and the
+`[tool.vercel]` entrypoint so Vercel prepares a Python Function instead of an
+empty deployment. `vercel.json` only configures the resolved function duration.
+
+Required production environment variables in Vercel:
+
+```txt
+SUPABASE_DATABASE_URL
+PII_ENCRYPTION_KEY
+```
+
+Optional variables with backend defaults:
+
+```txt
+DUE_SOON_WINDOW_DAYS
+APP_ENV
+LOG_LEVEL
+```
+
 ### API Documentation
 
 When the backend is running, FastAPI exposes the API contract at:
