@@ -137,7 +137,7 @@ function ObligationsTable({
   const dictionary = getDictionary(locale);
   return (
     <Card>
-      <Table>
+      <Table className="min-w-[56rem]" aria-label={dictionary.app.title}>
         <TableHeader>
           <TableRow>
             <TableHead>{dictionary.dashboard.title}</TableHead>

@@ -17,9 +17,9 @@ import {
   documentFormSchema,
   editObligationFormSchema,
   formDataValue,
-  initialActionState,
   obligationFormSchema,
   statusActionSchema,
+  successActionState,
   type ActionState,
 } from "@/features/obligations/schemas";
 
@@ -138,7 +138,7 @@ export async function statusTransitionAction(
     await changeObligationStatus(obligationId, parsed.data);
     revalidatePath(`/${locale}`);
     revalidatePath(`/${locale}/obligations/${obligationId}`);
-    return initialActionState;
+    return successActionState;
   } catch (error) {
     return errorState(error, locale);
   }
@@ -165,7 +165,7 @@ export async function attachDocumentAction(
   try {
     await attachObligationDocument(obligationId, parsed.data);
     revalidatePath(`/${locale}/obligations/${obligationId}`);
-    return initialActionState;
+    return successActionState;
   } catch (error) {
     return errorState(error, locale);
   }
@@ -183,7 +183,7 @@ export async function removeDocumentAction(
       Number(formDataValue(formData, "expectedVersion")),
     );
     revalidatePath(`/${locale}/obligations/${obligationId}`);
-    return initialActionState;
+    return successActionState;
   } catch (error) {
     return errorState(error, locale);
   }

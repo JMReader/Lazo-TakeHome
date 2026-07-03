@@ -52,4 +52,24 @@ describe("dashboard model", () => {
 
     expect(result.map((item) => item.id)).toEqual(["first", "second"]);
   });
+
+  it("keeps upcoming active filter limited to non-overdue active statuses", () => {
+    const result = filterObligations(
+      [
+        { ...base, id: "pending", status: "pending", dueDate: "2026-07-20" },
+        { ...base, id: "progress", status: "in_progress", dueDate: "2026-07-21" },
+        { ...base, id: "submitted", status: "submitted", dueDate: "2026-07-22" },
+        { ...base, id: "done", status: "done", dueDate: "2026-07-23" },
+        { ...base, id: "overdue", status: "pending", isOverdue: true },
+      ],
+      {
+        status: "all",
+        type: "all",
+        due: "upcoming_or_active",
+        query: "",
+      },
+    );
+
+    expect(result.map((item) => item.id)).toEqual(["pending", "progress"]);
+  });
 });

@@ -7,6 +7,10 @@ vi.mock("@/features/obligations/actions", () => ({
   statusTransitionAction: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
+
 const obligation: ObligationDetail = {
   id: "obl_1",
   type: "annual_report",
@@ -31,8 +35,13 @@ describe("StatusActions", () => {
   it("renders backend available transitions and blocks submitted when backend omits it", () => {
     render(<StatusActions locale="en" obligation={obligation} />);
 
-    expect(screen.getByRole("button", { name: "In progress" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Submitted" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Change status: In progress/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("This records a workflow change and updates the audit trail.")).toBeInTheDocument();
+    expect(screen.queryByText("Submitted")).toBeInTheDocument();
     expect(screen.getByText(/Submission blocked/)).toBeInTheDocument();
+    expect(screen.getByText("Current status")).toBeInTheDocument();
+    expect(screen.getByText("Available now")).toBeInTheDocument();
   });
 });

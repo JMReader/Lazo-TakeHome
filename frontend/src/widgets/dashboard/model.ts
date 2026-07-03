@@ -6,6 +6,7 @@ import type {
 import { obligationStatuses } from "@/entities/obligation/types";
 
 export type DueFilter = "all" | "overdue" | "due_soon" | "upcoming_or_active";
+const activeStatuses = new Set<ObligationStatus>(["pending", "in_progress"]);
 
 export type DashboardFilters = {
   status: ObligationStatus | "all";
@@ -57,7 +58,7 @@ export function filterObligations(
       if (filters.due === "due_soon" && !item.isDueSoon) return false;
       if (
         filters.due === "upcoming_or_active" &&
-        (item.isOverdue || item.isDueSoon)
+        (item.isOverdue || !activeStatuses.has(item.status))
       ) {
         return false;
       }

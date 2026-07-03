@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { obligationStatuses, obligationTypes } from "@/entities/obligation/types";
 import type { Locale } from "@/shared/i18n/config";
 import { getDictionary } from "@/shared/i18n/dictionaries";
@@ -28,16 +29,28 @@ export function DashboardFilterBar({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [query, setQuery] = useState(filters.query);
+  const [, startTransition] = useTransition();
 
-  function setFilter(key: string, value: string) {
+  const setFilter = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (!value || value === "all") {
       params.delete(key);
     } else {
       params.set(key, value);
     }
-    router.replace(`${pathname}?${params.toString()}`);
-  }
+    const nextQuery = params.toString();
+    startTransition(() => {
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    });
+  }, [pathname, router, searchParams, startTransition]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      if (query !== filters.query) setFilter("query", query);
+    }, 300);
+    return () => window.clearTimeout(timeout);
+  }, [filters.query, query, setFilter]);
 
   return (
     <div className="grid gap-3 rounded-lg border bg-surface p-4 md:grid-cols-[1.3fr_1fr_1fr_1fr]">
@@ -45,10 +58,10 @@ export function DashboardFilterBar({
         <span className="sr-only">{dictionary.dashboard.query}</span>
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-secondary-text" />
         <Input
-          defaultValue={filters.query}
           placeholder={dictionary.dashboard.query}
           className="pl-9"
-          onChange={(event) => setFilter("query", event.target.value)}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
         />
       </label>
       <Select

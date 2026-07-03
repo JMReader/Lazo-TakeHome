@@ -36,6 +36,10 @@ export function isApiError(error: unknown): error is ApiError {
 export function fieldErrorsFromDetails(details: Record<string, unknown>) {
   const fieldErrors: Record<string, string> = {};
   for (const [key, value] of Object.entries(details)) {
+    if (key === "errors" && Array.isArray(value)) {
+      mapValidationErrors(value, fieldErrors);
+      continue;
+    }
     if (typeof value === "string") {
       fieldErrors[key] = value;
     }
@@ -45,4 +49,39 @@ export function fieldErrorsFromDetails(details: Record<string, unknown>) {
     }
   }
   return fieldErrors;
+}
+
+function mapValidationErrors(
+  errors: unknown[],
+  fieldErrors: Record<string, string>,
+) {
+  for (const error of errors) {
+    if (!isValidationError(error)) continue;
+    const field = fieldFromLocation(error.loc);
+    if (field && !fieldErrors[field]) fieldErrors[field] = error.msg;
+  }
+}
+
+function isValidationError(
+  value: unknown,
+): value is { loc: unknown[]; msg: string } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "loc" in value &&
+    "msg" in value &&
+    Array.isArray(value.loc) &&
+    typeof value.msg === "string"
+  );
+}
+
+function fieldFromLocation(location: unknown[]) {
+  const field = [...location]
+    .reverse()
+    .find((item): item is string => typeof item === "string" && item !== "body");
+  return field ? toCamelCase(field) : null;
+}
+
+function toCamelCase(value: string) {
+  return value.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
 }

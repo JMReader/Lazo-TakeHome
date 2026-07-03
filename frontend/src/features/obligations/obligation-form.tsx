@@ -8,7 +8,10 @@ import {
   createObligationAction,
   editObligationAction,
 } from "@/features/obligations/actions";
-import { initialActionState } from "@/features/obligations/schemas";
+import {
+  initialActionState,
+  todayDateString,
+} from "@/features/obligations/schemas";
 import type { Locale } from "@/shared/i18n/config";
 import { getDictionary } from "@/shared/i18n/dictionaries";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
@@ -51,6 +54,7 @@ export function ObligationForm(props: Props) {
     if (!error) return undefined;
     if (error === "required") return dictionary.form.required;
     if (error === "invalidDate") return dictionary.form.invalidDate;
+    if (error === "notPastDate") return dictionary.form.notPastDate;
     return error;
   }
 
@@ -123,10 +127,12 @@ export function ObligationForm(props: Props) {
                   name="dueDate"
                   type="date"
                   defaultValue={obligation?.dueDate ?? ""}
+                  min={todayDateString()}
                   required
                   aria-invalid={Boolean(fieldError("dueDate"))}
+                  aria-describedby={fieldError("dueDate") ? "dueDate-error" : undefined}
                 />
-                <FieldError>{fieldError("dueDate")}</FieldError>
+                <FieldError id="dueDate-error">{fieldError("dueDate")}</FieldError>
               </Field>
             </div>
             <Field>

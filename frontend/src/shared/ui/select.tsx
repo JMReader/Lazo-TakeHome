@@ -28,14 +28,29 @@ export function SelectTrigger({
 
 export function SelectContent({
   className,
+  position = "popper",
   ...props
 }: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>) {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
-        className={cn("z-50 min-w-[8rem] overflow-hidden rounded-md border bg-surface text-primary-text shadow-md", className)}
+        position={position}
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        collisionPadding={12}
+        className={cn(
+          "z-50 max-h-[min(18rem,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border bg-surface text-primary-text shadow-md",
+          position === "popper" &&
+            "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
+          className,
+        )}
         {...props}
-      />
+      >
+        <SelectPrimitive.Viewport className="p-1">
+          {props.children}
+        </SelectPrimitive.Viewport>
+      </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   );
 }

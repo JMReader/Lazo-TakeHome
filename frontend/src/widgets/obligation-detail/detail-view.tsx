@@ -133,44 +133,52 @@ export function ObligationDetailView({
                 locale={locale}
                 obligationId={obligation.id}
                 version={obligation.version}
+                hasDocument={Boolean(obligation.document)}
               />
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>{dictionary.detail.audit}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {obligation.auditHistory.length === 0 ? (
-                <p className="text-sm text-secondary-text">{dictionary.detail.noAudit}</p>
-              ) : (
-                <ol className="grid gap-3">
-                  {obligation.auditHistory.map((event) => (
-                    <li key={event.id} className="rounded-md border bg-surface p-4">
-                      <div className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="font-medium">
-                          {event.fromStatus
-                            ? dictionary.status[event.fromStatus]
-                            : "-"}{" "}
-                          {"->"} {dictionary.status[event.toStatus]}
-                        </span>
-                        <span className="text-secondary-text">
-                          {formatDateTime(event.changedAt, locale)}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-sm text-secondary-text">
-                        {dictionary.detail.changedBy}: {event.changedBy} -{" "}
-                        {dictionary.detail.version}: {event.obligationVersion}
-                      </p>
-                      {event.reason ? (
-                        <p className="mt-2 text-sm">{event.reason}</p>
-                      ) : null}
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </CardContent>
+            <details>
+              <summary className="cursor-pointer list-none rounded-t-lg px-6 py-5">
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle>{dictionary.detail.audit}</CardTitle>
+                  <span className="rounded-full border px-2 py-1 text-xs text-secondary-text">
+                    {obligation.auditHistory.length} {dictionary.detail.auditEvents}
+                  </span>
+                </div>
+              </summary>
+              <CardContent>
+                {obligation.auditHistory.length === 0 ? (
+                  <p className="text-sm text-secondary-text">{dictionary.detail.noAudit}</p>
+                ) : (
+                  <ol className="grid gap-3">
+                    {obligation.auditHistory.map((event) => (
+                      <li key={event.id} className="rounded-md border bg-surface p-4">
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                          <span className="font-medium">
+                            {event.fromStatus
+                              ? dictionary.status[event.fromStatus]
+                              : "-"}{" "}
+                            {"->"} {dictionary.status[event.toStatus]}
+                          </span>
+                          <span className="text-secondary-text">
+                            {formatDateTime(event.changedAt, locale)}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-sm text-secondary-text">
+                          {dictionary.detail.changedBy}: {event.changedBy} -{" "}
+                          {dictionary.detail.version}: {event.obligationVersion}
+                        </p>
+                        {event.reason ? (
+                          <p className="mt-2 text-sm">{event.reason}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </CardContent>
+            </details>
           </Card>
         </div>
 

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import type { Locale } from "@/shared/i18n/config";
-import { nextLocale } from "@/shared/i18n/config";
 import { getDictionary } from "@/shared/i18n/dictionaries";
 import { Button } from "@/shared/ui/button";
+import { LocaleSwitch } from "@/widgets/app-shell/locale-switch";
 import { ThemeToggle } from "@/widgets/app-shell/theme-toggle";
 
 export function AppShell({
@@ -14,7 +14,6 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const dictionary = getDictionary(locale);
-  const alternateLocale = nextLocale(locale);
   return (
     <div className="min-h-screen bg-background text-primary-text">
       <header className="border-b bg-surface/80 backdrop-blur">
@@ -33,9 +32,7 @@ export function AppShell({
             </span>
           </Link>
           <nav className="flex shrink-0 items-center gap-2">
-            <Button asChild variant="ghost" size="sm">
-              <Link href={`/${alternateLocale}`}>{alternateLocale.toUpperCase()}</Link>
-            </Button>
+            <LocaleSwitch locale={locale} />
             <ThemeToggle label={dictionary.app.theme} />
             <Button asChild size="sm">
               <Link href={`/${locale}/obligations/new`}>

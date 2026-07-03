@@ -63,6 +63,26 @@
   }
 }
 
+.light {
+  --background: #f7f1e8;
+  --surface: #fffdf9;
+  --card: #f0e6d8;
+  --border: #ded0bd;
+  --foreground: #211b15;
+  --primary-text: #211b15;
+  --secondary-text: #7b6d5f;
+  --accent: #c46a35;
+  --accent-hover: #a9542a;
+  --danger: #a55345;
+  --warning: #b8842c;
+  --success: #657a42;
+  --muted: #9a8d7d;
+  --in-progress: #3f7774;
+  --submitted: #76536e;
+  --ring: #c46a35;
+  color-scheme: light;
+}
+
 .dark {
   --background: #11100e;
   --surface: #1a1713;

@@ -6,11 +6,23 @@ const dateString = z
   .min(1, "required")
   .regex(/^\d{4}-\d{2}-\d{2}$/, "invalidDate");
 
+export function todayDateString(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+const futureOrTodayDateString = dateString.refine(
+  (value) => value >= todayDateString(),
+  "notPastDate",
+);
+
 export const obligationFormSchema = z.object({
   type: z.enum(obligationTypes),
   title: z.string().trim().min(1, "required"),
   description: z.string().trim().optional().default(""),
-  dueDate: dateString,
+  dueDate: futureOrTodayDateString,
   owner: z.string().trim().min(1, "required"),
   requiresDocument: z.boolean(),
   companyTaxId: z.string().trim().min(1, "required"),
@@ -21,7 +33,7 @@ export const editObligationFormSchema = z.object({
   type: z.enum(obligationTypes),
   title: z.string().trim().min(1, "required"),
   description: z.string().trim().optional().default(""),
-  dueDate: dateString,
+  dueDate: futureOrTodayDateString,
   owner: z.string().trim().min(1, "required"),
   requiresDocument: z.boolean(),
   companyTaxId: z
@@ -48,13 +60,18 @@ export const documentFormSchema = z.object({
 export type FormFieldErrors = Record<string, string>;
 
 export type ActionState = {
-  status: "idle" | "error";
+  status: "idle" | "success" | "error";
   message?: string;
   fieldErrors: FormFieldErrors;
 };
 
 export const initialActionState: ActionState = {
   status: "idle",
+  fieldErrors: {},
+};
+
+export const successActionState: ActionState = {
+  status: "success",
   fieldErrors: {},
 };
 
