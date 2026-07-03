@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Compliance Obligations Tracker",
   description: "Operational compliance obligations dashboard.",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
