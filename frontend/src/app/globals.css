@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f1e8;
+  --surface: #fffdf9;
+  --card: #f0e6d8;
+  --border: #ded0bd;
+  --foreground: #211b15;
+  --primary-text: #211b15;
+  --secondary-text: #7b6d5f;
+  --accent: #c46a35;
+  --accent-hover: #a9542a;
+  --danger: #a55345;
+  --warning: #b8842c;
+  --success: #657a42;
+  --muted: #9a8d7d;
+  --in-progress: #3f7774;
+  --submitted: #76536e;
+  --ring: #c46a35;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-primary-text: var(--primary-text);
+  --color-secondary-text: var(--secondary-text);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-muted: var(--muted);
+  --color-in-progress: var(--in-progress);
+  --color-submitted: var(--submitted);
+  --color-ring: var(--ring);
+  --font-sans: "Geist", Arial, Helvetica, sans-serif;
+  --font-mono: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #11100e;
+    --surface: #1a1713;
+    --card: #231f19;
+    --border: #3a3026;
+    --foreground: #f4efe7;
+    --primary-text: #f4efe7;
+    --secondary-text: #a99f91;
+    --accent: #c46a35;
+    --accent-hover: #e07a3f;
+    --danger: #bd6a5a;
+    --warning: #d19a35;
+    --success: #81945b;
+    --muted: #7d7062;
+    --in-progress: #5a9692;
+    --submitted: #9a6f91;
+    --ring: #e07a3f;
+    color-scheme: dark;
+  }
+}
+
+.dark {
+  --background: #11100e;
+  --surface: #1a1713;
+  --card: #231f19;
+  --border: #3a3026;
+  --foreground: #f4efe7;
+  --primary-text: #f4efe7;
+  --secondary-text: #a99f91;
+  --accent: #c46a35;
+  --accent-hover: #e07a3f;
+  --danger: #bd6a5a;
+  --warning: #d19a35;
+  --success: #81945b;
+  --muted: #7d7062;
+  --in-progress: #5a9692;
+  --submitted: #9a6f91;
+  --ring: #e07a3f;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+* {
+  border-color: var(--border);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  outline-color: var(--ring);
+}

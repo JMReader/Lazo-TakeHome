@@ -1,8 +1,10 @@
 {
   "feature_id": "frontend-obligations",
   "document_type": "execution_todos",
-  "status": "pending_approval",
+  "status": "implemented",
   "created_at": "2026-07-03",
+  "approved_at": "2026-07-03",
+  "implemented_at": "2026-07-03",
   "depends_on": [
     "specs/features/frontend-obligations/functional-spec.json",
     "specs/features/frontend-obligations/technical-spec.json"
@@ -12,7 +14,7 @@
       "id": "T01",
       "title": "Scaffold frontend Next.js app",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": false,
       "depends_on": [],
       "outputs": [
@@ -35,7 +37,7 @@
       "id": "T02",
       "title": "Initialize shadcn/ui and base UI primitives",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": false,
       "depends_on": [
         "T01"
@@ -56,7 +58,7 @@
       "id": "T03",
       "title": "Implement Obsidian & Copper Ledger theme tokens",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": false,
       "depends_on": [
         "T02"
@@ -78,7 +80,7 @@
       "id": "T04",
       "title": "Create typed API client and DTO contracts",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": false,
       "depends_on": [
         "T01"
@@ -102,7 +104,7 @@
       "id": "T05",
       "title": "Create i18n dictionaries and locale routing helpers",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": true,
       "depends_on": [
         "T01"
@@ -124,7 +126,7 @@
       "id": "T06",
       "title": "Create route structure and shared app shell",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": false,
       "depends_on": [
         "T03",
@@ -149,7 +151,7 @@
       "id": "T07",
       "title": "Implement dashboard data derivation and filters",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": true,
       "depends_on": [
         "T04",
@@ -172,7 +174,7 @@
       "id": "T08",
       "title": "Build dashboard route and widgets",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": false,
       "depends_on": [
         "T06",
@@ -199,7 +201,7 @@
       "id": "T09",
       "title": "Build obligation detail read-only panels",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": true,
       "depends_on": [
         "T04",
@@ -227,7 +229,7 @@
       "id": "T10",
       "title": "Build create obligation flow",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": true,
       "depends_on": [
         "T04",
@@ -253,7 +255,7 @@
       "id": "T11",
       "title": "Build edit obligation flow",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": true,
       "depends_on": [
         "T04",
@@ -278,7 +280,7 @@
       "id": "T12",
       "title": "Build status transition actions",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": true,
       "depends_on": [
         "T04",
@@ -304,7 +306,7 @@
       "id": "T13",
       "title": "Build document metadata actions",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": true,
       "depends_on": [
         "T04",
@@ -330,7 +332,7 @@
       "id": "T14",
       "title": "Build guarded delete obligation action",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": true,
       "depends_on": [
         "T04",
@@ -354,7 +356,7 @@
       "id": "T15",
       "title": "Add frontend tests for critical behavior",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": false,
       "depends_on": [
         "T08",
@@ -386,7 +388,7 @@
       "id": "T16",
       "title": "Run quality pass and document frontend setup",
       "owner_role": "frontend_engineer",
-      "status": "todo",
+      "status": "done",
       "parallelizable": false,
       "depends_on": [
         "T15"
