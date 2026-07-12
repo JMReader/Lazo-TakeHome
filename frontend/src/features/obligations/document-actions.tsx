@@ -8,6 +8,10 @@ import {
   removeDocumentAction,
 } from "@/features/obligations/actions";
 import { initialActionState } from "@/features/obligations/schemas";
+import {
+  isVersionConflictState,
+  VersionConflictDialog,
+} from "@/features/obligations/version-conflict-dialog";
 import type { Locale } from "@/shared/i18n/config";
 import { getDictionary } from "@/shared/i18n/dictionaries";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
@@ -49,6 +53,7 @@ export function DocumentAttachForm({
   const storageKeyRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
+  const versionConflict = isVersionConflictState(state);
 
   useEffect(() => {
     if (state.status !== "success") return;
@@ -77,7 +82,10 @@ export function DocumentAttachForm({
 
   return (
     <form ref={formRef} action={formAction} className="grid gap-4">
-      {state.status === "error" ? (
+      {versionConflict ? (
+        <VersionConflictDialog locale={locale} />
+      ) : null}
+      {state.status === "error" && !versionConflict ? (
         <Alert className="border-danger/50">
           <AlertDescription>{state.message}</AlertDescription>
         </Alert>
@@ -177,13 +185,17 @@ export function RemoveDocumentButton({
     initialActionState,
   );
   const formRef = useRef<HTMLFormElement>(null);
+  const versionConflict = isVersionConflictState(state);
   useEffect(() => {
     if (state.status === "success") router.refresh();
   }, [router, state.status]);
 
   return (
     <div className="grid gap-3">
-      {state.status === "error" ? (
+      {versionConflict ? (
+        <VersionConflictDialog locale={locale} />
+      ) : null}
+      {state.status === "error" && !versionConflict ? (
         <Alert className="border-danger/50">
           <AlertDescription>{state.message}</AlertDescription>
         </Alert>

@@ -78,6 +78,9 @@ type Dictionary = {
     deleteObligation: string;
     confirmDelete: string;
     confirmRemoveDocument: string;
+    versionConflictTitle: string;
+    versionConflictDescription: string;
+    versionConflictRefresh: string;
     reason: string;
     changedBy: string;
     changedAt: string;
@@ -189,6 +192,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       deleteObligation: "Delete obligation",
       confirmDelete: "This permanently deletes the obligation.",
       confirmRemoveDocument: "This removes the document metadata from the obligation.",
+      versionConflictTitle: "A newer version is available",
+      versionConflictDescription: "Another user updated this obligation while you were working. Refresh to load the latest version before trying again.",
+      versionConflictRefresh: "Refresh obligation",
       reason: "Reason",
       changedBy: "Changed by",
       changedAt: "Changed at",
@@ -317,6 +323,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       deleteObligation: "Eliminar obligación",
       confirmDelete: "Esto elimina la obligación de forma permanente.",
       confirmRemoveDocument: "Esto quita la metadata del documento de la obligación.",
+      versionConflictTitle: "Hay una version mas nueva",
+      versionConflictDescription: "Otro usuario actualizo esta obligacion mientras estabas trabajando. Actualiza para cargar la ultima version antes de reintentar.",
+      versionConflictRefresh: "Actualizar obligacion",
       reason: "Motivo",
       changedBy: "Cambiado por",
       changedAt: "Fecha",

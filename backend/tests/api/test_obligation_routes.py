@@ -244,6 +244,13 @@ async def test_generic_update_rejects_status_and_stale_status_change_creates_no_
             )
             assert ok.status_code == 200
 
+            stale_same_transition = await client.patch(
+                f"/api/obligations/{created['id']}/status",
+                json={"targetStatus": "in_progress", "expectedVersion": created["version"]},
+            )
+            assert stale_same_transition.status_code == 409
+            assert stale_same_transition.json()["code"] == "OBLIGATION_VERSION_CONFLICT"
+
             stale = await client.patch(
                 f"/api/obligations/{created['id']}/status",
                 json={"targetStatus": "submitted", "expectedVersion": created["version"]},

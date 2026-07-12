@@ -12,6 +12,10 @@ import {
   initialActionState,
   todayDateString,
 } from "@/features/obligations/schemas";
+import {
+  isVersionConflictState,
+  VersionConflictDialog,
+} from "@/features/obligations/version-conflict-dialog";
 import type { Locale } from "@/shared/i18n/config";
 import { getDictionary } from "@/shared/i18n/dictionaries";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
@@ -48,6 +52,7 @@ export function ObligationForm(props: Props) {
       : editObligationAction.bind(null, props.locale, props.obligation.id);
   const [state, formAction, pending] = useActionState(action, initialActionState);
   const obligation = props.mode === "edit" ? props.obligation : null;
+  const versionConflict = isVersionConflictState(state);
 
   function fieldError(name: string) {
     const error = state.fieldErrors[name];
@@ -69,7 +74,10 @@ export function ObligationForm(props: Props) {
       </CardHeader>
       <CardContent>
         <form action={formAction} className="grid gap-5">
-          {state.status === "error" ? (
+          {versionConflict ? (
+            <VersionConflictDialog locale={props.locale} />
+          ) : null}
+          {state.status === "error" && !versionConflict ? (
             <Alert className="border-danger/50">
               <AlertDescription>{state.message}</AlertDescription>
             </Alert>

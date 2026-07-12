@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { obligationStatuses, obligationTypes } from "@/entities/obligation/types";
+import type { KnownApiErrorCode } from "@/shared/api/errors";
 
 const dateString = z
   .string()
@@ -62,6 +63,7 @@ export type FormFieldErrors = Record<string, string>;
 export type ActionState = {
   status: "idle" | "success" | "error";
   message?: string;
+  errorCode?: KnownApiErrorCode | string;
   fieldErrors: FormFieldErrors;
 };
 

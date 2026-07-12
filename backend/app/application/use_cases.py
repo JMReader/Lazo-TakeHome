@@ -12,6 +12,7 @@ from app.api.schemas import (
     StatusChangeRequest,
 )
 from app.application.presenters import present_obligation_detail, present_obligation_list_item
+from app.domain.exceptions import ObligationVersionConflict
 from app.domain.obligations import ObligationStatus
 from app.domain.policies import validate_document_gate, validate_transition
 from app.domain.update_invariants import validate_requires_document_update
@@ -74,6 +75,7 @@ class ObligationService:
     ) -> ObligationDetailResponse:
         """Update editable obligation fields without changing workflow status."""
         current = await self._repo.get(obligation_id)
+        self._validate_expected_version(current.version, request.expected_version)
         next_requires_document = (
             request.requires_document
             if request.requires_document is not None
@@ -123,6 +125,7 @@ class ObligationService:
     ) -> ObligationDetailResponse:
         """Remove document metadata and return the refreshed detail."""
         current = await self._repo.get(obligation_id)
+        self._validate_expected_version(current.version, expected_version)
         validate_requires_document_update(
             status=ObligationStatus(current.status),
             next_requires_document=current.requires_document,
@@ -141,6 +144,7 @@ class ObligationService:
     ) -> ObligationDetailResponse:
         """Validate and persist a workflow status transition."""
         current = await self._repo.get(obligation_id)
+        self._validate_expected_version(current.version, request.expected_version)
         current_status = ObligationStatus(current.status)
         validate_transition(current_status, request.target_status)
         validate_document_gate(
@@ -155,6 +159,12 @@ class ObligationService:
             reason=request.reason,
         )
         return self._detail(model)
+
+    def _validate_expected_version(self, current_version: int, expected_version: int) -> None:
+        if current_version != expected_version:
+            raise ObligationVersionConflict(
+                "The obligation was modified by another request. Please refresh and try again."
+            )
 
     def _detail(self, model) -> ObligationDetailResponse:
         """Wrap an obligation model in the full detail response envelope."""
