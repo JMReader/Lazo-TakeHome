@@ -7,6 +7,10 @@ import type { ObligationDetail, ObligationStatus } from "@/entities/obligation/t
 import { obligationStatuses } from "@/entities/obligation/types";
 import { statusTransitionAction } from "@/features/obligations/actions";
 import { initialActionState } from "@/features/obligations/schemas";
+import {
+  isVersionConflictState,
+  VersionConflictDialog,
+} from "@/features/obligations/version-conflict-dialog";
 import type { Locale } from "@/shared/i18n/config";
 import { getDictionary } from "@/shared/i18n/dictionaries";
 import { cn } from "@/shared/lib/utils";
@@ -39,6 +43,7 @@ export function StatusActions({
     obligation.availableTransitions[0] ?? "",
   );
   const selectedLabel = selectedStatus ? dictionary.status[selectedStatus] : "";
+  const versionConflict = isVersionConflictState(state);
   const showBlockedSubmitted =
     obligation.submitBlockedReason &&
     !obligation.availableTransitions.includes("submitted");
@@ -49,7 +54,10 @@ export function StatusActions({
 
   return (
     <div className="grid gap-5">
-      {state.status === "error" ? (
+      {versionConflict ? (
+        <VersionConflictDialog locale={locale} />
+      ) : null}
+      {state.status === "error" && !versionConflict ? (
         <Alert className="border-danger/50">
           <AlertDescription>{state.message}</AlertDescription>
         </Alert>

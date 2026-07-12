@@ -30,6 +30,7 @@ function errorState(error: unknown, locale: Locale): ActionState {
     return {
       status: "error",
       message: dictionary.errors[code as keyof typeof dictionary.errors],
+      errorCode: error.code,
       fieldErrors: fieldErrorsFromDetails(error.details),
     };
   }
